@@ -21,7 +21,17 @@ let units = mockUnits.map((u) => ({ ...u }))
 let nextSeq = 100
 const state = { periods: {} } // period -> { unitId: { done, doneAt, operator, device } }
 const logs = []
-const config = { adminPwd: 'admin123' } // 演示默认密码 admin123;实际上线存 bcrypt hash 到 CloudBase config
+
+// 计算当月最后一天 18:00 作为默认截止时间
+function defaultDeadline() {
+  const d = new Date()
+  // 当月最后一天
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+  last.setHours(18, 0, 0, 0)
+  return last.getTime()
+}
+
+const config = { adminPwd: 'admin123', deadline: defaultDeadline() } // 演示默认密码 admin123;实际上线存 bcrypt hash 到 CloudBase config
 
 function pushLog(action, extra = {}) {
   logs.unshift({ action, ts: Date.now(), operator: 'me', device: getDevice(), ...extra })
@@ -100,6 +110,14 @@ export const backend = {
     config.adminPwd = newPwd
     pushLog('changePwd')
     return true
+  },
+  async getDeadline() {
+    return config.deadline
+  },
+  async setDeadline(ts) {
+    config.deadline = ts
+    pushLog('setDeadline', { deadline: ts })
+    return ts
   },
   async resetPeriod(period) {
     if (!state.periods[period]) seed(period, false)

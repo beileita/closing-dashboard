@@ -1,27 +1,51 @@
 <template>
-  <div class="flex-1 flex flex-col min-h-0 px-4 md:px-6 pb-4 md:pb-6">
-    <!-- 进度条 -->
-    <div class="py-3 flex items-center gap-3 md:gap-4">
-      <span class="text-xs md:text-sm text-tech-muted whitespace-nowrap">当月结账进度</span>
-      <div class="flex-1 h-2 md:h-2.5 bg-tech-panel rounded-full overflow-hidden border border-tech-border">
-        <div class="h-full rounded-full transition-all duration-700" :style="{ width: pct + '%', background: 'linear-gradient(90deg,#00C9B6,#00FF9C)', boxShadow: '0 0 12px #00FF9C' }"></div>
-      </div>
-      <span class="font-mono text-tech-green neon text-xs md:text-sm whitespace-nowrap">{{ done }}/{{ total }} ({{ pct }}%)</span>
-      <span class="hidden md:inline text-xs text-tech-muted whitespace-nowrap">截止 {{ store.currentPeriod }} 月末</span>
+  <div class="flex-1 flex flex-col min-h-0 px-4 pb-4">
+    <div class="md:hidden flex card p-1 mb-3">
+      <button @click="setMobileView('map')" :class="['flex-1 py-1.5 text-xs rounded-lg transition', store.mobileView==='map'?'bg-green-700/15 text-green-400':'text-gray-500']">🗺 地图</button>
+      <button @click="setMobileView('list')" :class="['flex-1 py-1.5 text-xs rounded-lg transition', store.mobileView==='list'?'bg-green-700/15 text-green-400':'text-gray-500']">📋 列表</button>
     </div>
 
-    <!-- 移动端 地图/列表 切换 -->
-    <div class="md:hidden flex glass rounded-lg p-1 mb-3">
-      <button @click="setMobileView('map')" :class="['flex-1 py-1.5 text-sm rounded transition', store.mobileView === 'map' ? 'bg-tech-green/20 text-tech-green' : 'text-tech-muted']">🗺 地图</button>
-      <button @click="setMobileView('list')" :class="['flex-1 py-1.5 text-sm rounded transition', store.mobileView === 'list' ? 'bg-tech-green/20 text-tech-green' : 'text-tech-muted']">📋 列表</button>
-    </div>
-
-    <!-- 主体 -->
     <div class="flex-1 flex gap-4 min-h-0">
-      <div :class="['glass rounded-xl overflow-hidden flex flex-col w-full md:w-[360px] md:shrink-0', store.mobileView === 'list' ? 'flex' : 'hidden md:flex']">
-        <UnitList />
+      <!-- Left: stats + list -->
+      <div :class="['flex flex-col gap-3 w-full md:w-[340px] md:shrink-0', store.mobileView==='list'?'flex':'hidden md:flex']">
+        <!-- Compact stats -->
+        <div class="card px-4 py-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-gray-400 font-medium tracking-wide uppercase">Progress</span>
+            <span class="text-xs text-gray-500">截止 {{ store.currentPeriod }} 月末</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="relative w-12 h-12 shrink-0">
+              <svg class="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(156,163,175,0.12)" stroke-width="5" />
+                <circle cx="32" cy="32" r="28" fill="none" stroke="#008A4C" stroke-width="5" stroke-linecap="round"
+                  :stroke-dasharray="2*Math.PI*28" :stroke-dashoffset="2*Math.PI*28*(1-pctNum/100)"
+                  class="transition-[stroke-dashoffset] duration-1000 ease-out"
+                  style="filter:drop-shadow(0 0 6px rgba(0,138,76,0.35))" />
+              </svg>
+              <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-green-400 tabular-nums">{{ pct }}%</span>
+            </div>
+            <div class="flex-1 grid grid-cols-2 gap-x-3 gap-y-0.5">
+              <div class="text-[11px] text-gray-400">已完成</div><div class="text-[11px] text-gray-400 text-right">进行中</div>
+              <div class="text-lg font-bold text-green-400 tabular-nums">{{ done }}</div>
+              <div class="text-lg font-bold text-gray-500 tabular-nums text-right">{{ undone }}</div>
+              <div class="text-[10px] text-gray-500 col-span-2 mt-0.5">总计 {{ total }} 单位</div>
+            </div>
+          </div>
+          <div class="mt-2.5 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-700 ease-out"
+              :style="{width:pctNum+'%',background:'linear-gradient(90deg,#008A4C,#22c55e)',boxShadow:'0 0 6px rgba(0,138,76,0.25)'}"></div>
+          </div>
+        </div>
+
+        <!-- Unit list -->
+        <div class="card flex-1 overflow-hidden flex flex-col min-h-0">
+          <UnitList />
+        </div>
       </div>
-      <div :class="['flex-1 glass rounded-xl overflow-hidden relative min-h-[300px]', store.mobileView === 'map' ? 'flex' : 'hidden md:flex']">
+
+      <!-- Map -->
+      <div :class="['flex-1 card-map overflow-hidden relative min-h-[400px]', store.mobileView==='map'?'flex':'hidden md:flex']">
         <ChinaMap />
       </div>
     </div>
@@ -34,7 +58,8 @@ import { store, isDone, setMobileView } from '../data/store'
 import UnitList from './UnitList.vue'
 import ChinaMap from './ChinaMap.vue'
 
-const done = computed(() => store.units.filter((u) => isDone(u.id)).length)
+const done = computed(() => store.units.filter(u=>isDone(u.id)).length)
 const total = computed(() => store.units.length)
-const pct = computed(() => (total.value ? Math.round((done.value / total.value) * 100) : 0))
+const undone = computed(() => total.value-done.value)
+const pctNum = computed(() => total.value?Math.round((done.value/total.value)*100):0)
 </script>

@@ -1,68 +1,54 @@
 <template>
   <div class="h-full flex flex-col relative z-10">
-    <!-- 粒子背景(仅桌面 + 支持 WebGL) -->
     <ParticleBg v-if="isDesktop && webgl" />
 
-    <!-- 顶部导航 -->
-    <header class="flex items-center justify-between px-4 md:px-6 py-3 glass border-b border-tech-border relative z-10">
-      <div class="flex items-center gap-3">
-        <div class="w-1 h-8 md:h-9 bg-tech-green rounded shadow-glow"></div>
-        <div>
-          <h1 class="text-base md:text-lg font-semibold neon text-tech-green tracking-wide">财务共享中心 · 结账进度看板</h1>
-          <p class="hidden md:block text-[11px] text-tech-muted tracking-wider">FINANCIAL SHARED SERVICE CENTER · CLOSING PROGRESS</p>
-        </div>
+    <!-- Compact Top Bar -->
+    <header class="relative z-10 flex items-center gap-3 px-4 py-2.5">
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="w-1 h-6 rounded-full" style="background:#008A4C;box-shadow:0 0 10px rgba(0,138,76,0.5)"></span>
+        <span class="text-sm font-bold text-white tracking-tight">青岛啤酒财务共享中心</span>
       </div>
-      <div class="flex items-center gap-2 md:gap-4">
-        <nav class="flex glass rounded-lg p-0.5">
-          <button
-            v-for="n in nav"
-            :key="n.key"
-            @click="setView(n.key)"
-            :class="['px-3 md:px-4 py-1.5 text-xs md:text-sm rounded transition', store.view === n.key ? 'bg-tech-green/20 text-tech-green' : 'text-tech-muted hover:text-tech-green']"
-          >
-            {{ n.label }}
-          </button>
-        </nav>
-        <div class="hidden sm:flex items-center gap-1.5 text-xs text-tech-green">
-          <span class="w-1.5 h-1.5 rounded-full bg-tech-green live-dot"></span>实时
-        </div>
-        <select
-          v-if="store.view === 'dashboard'"
-          v-model="store.currentPeriod"
-          @change="onPeriodChange"
-          class="bg-tech-panel border border-tech-border rounded-md px-2 py-1.5 text-sm text-tech-green outline-none focus:border-tech-green"
-        >
-          <option v-for="p in store.periods" :key="p" :value="p" class="bg-tech-panel">{{ p }}</option>
-        </select>
+
+      <div :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs', cdBg]">
+        <span class="text-gray-500 text-[10px]">截止</span>
+        <span v-if="cd.overdue" class="text-red-400 font-bold text-xs">已超期</span>
+        <template v-else>
+          <span class="tabular-nums font-bold text-white">{{ cd.days }}</span><span class="text-gray-500">天</span>
+          <span class="tabular-nums font-bold text-white">{{ cd.hours }}</span><span class="text-gray-500">:</span>
+          <span class="tabular-nums font-bold text-white">{{ cd.mins }}</span><span class="text-gray-500">:</span>
+          <span class="tabular-nums font-bold text-white">{{ cd.secs }}</span>
+        </template>
       </div>
+
+      <div class="flex-1"></div>
+
+      <nav class="flex card p-0.5">
+        <button v-for="n in nav" :key="n.key" @click="setView(n.key)"
+          :class="['px-3 py-1.5 text-xs rounded-lg transition font-medium', store.view===n.key?'bg-green-700/15 text-green-400':'text-gray-500 hover:text-gray-300']">
+          {{ n.label }}
+        </button>
+      </nav>
+
+      <span class="flex items-center gap-1 text-xs text-green-400 ml-1"><span class="w-1.5 h-1.5 rounded-full live-dot" style="background:#008A4C"></span></span>
+      <select v-if="store.view==='dashboard'" v-model="store.currentPeriod" @change="onPeriodChange"
+        class="card px-2.5 py-1.5 text-xs text-gray-300 outline-none cursor-pointer">
+        <option v-for="p in store.periods" :key="p" :value="p" class="bg-gray-800">{{ p }}</option>
+      </select>
     </header>
 
-    <!-- 主体视图 -->
     <main class="flex-1 flex flex-col min-h-0 relative z-10 overflow-hidden">
-      <Dashboard v-if="store.view === 'dashboard'" />
-      <Manage v-else-if="store.view === 'manage'" />
+      <Dashboard v-if="store.view==='dashboard'" />
+      <Manage v-else-if="store.view==='manage'" />
     </main>
 
-    <!-- 完成闪光 -->
-    <div v-if="store.flash > 0" :key="'flash' + store.flash" class="flash-overlay"></div>
-
-    <!-- toast -->
-    <div class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+    <div v-if="store.flash>0" :key="'flash'+store.flash" class="flash-overlay"></div>
+    <div class="fixed top-14 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
       <transition-group name="toast">
-        <div v-for="t in store.toasts" :key="t.id" class="glass rounded-lg px-4 py-2 text-sm text-tech-green neon shadow-glowsoft whitespace-nowrap">
-          {{ t.msg }}
-        </div>
+        <div v-for="t in store.toasts" :key="t.id" class="card-elevated px-4 py-2 text-sm text-white font-medium" style="box-shadow:0 0 16px rgba(0,138,76,0.25)">{{ t.msg }}</div>
       </transition-group>
     </div>
-
-    <!-- 里程碑横幅 -->
-    <div
-      v-if="banner"
-      :key="banner"
-      class="fixed top-1/3 left-1/2 z-50 text-center pointer-events-none"
-      style="transform: translate(-50%, 0); animation: bannerIn 0.5s ease-out"
-    >
-      <div class="text-2xl md:text-4xl font-bold text-tech-green neon drop-shadow">{{ banner }}</div>
+    <div v-if="banner" :key="banner" class="fixed top-1/3 left-1/2 z-50 text-center pointer-events-none" style="transform:translate(-50%,0);animation:bannerIn 0.5s ease-out">
+      <div class="text-2xl md:text-4xl font-bold text-green-400">{{ banner }}</div>
     </div>
   </div>
 </template>
@@ -76,70 +62,47 @@ import ParticleBg from './components/ParticleBg.vue'
 import Dashboard from './components/Dashboard.vue'
 import Manage from './components/Manage.vue'
 
-const nav = [
-  { key: 'dashboard', label: '看板' },
-  { key: 'manage', label: '管理' },
-]
+const nav = [{ key:'dashboard',label:'看板' },{ key:'manage',label:'管理' }]
 
-const isDesktop = ref(window.matchMedia('(min-width: 768px)').matches)
-const webgl = ref(hasWebGL())
-function onResize() {
-  isDesktop.value = window.matchMedia('(min-width: 768px)').matches
-}
-onMounted(() => {
-  init()
-  window.addEventListener('resize', onResize)
+const isDesktop = ref(true), webgl = ref(false)
+function onResize() { isDesktop.value = window.matchMedia('(min-width:768px)').matches }
+onMounted(() => { onResize(); webgl.value = hasWebGL(); window.addEventListener('resize',onResize); init() })
+onBeforeUnmount(() => { window.removeEventListener('resize',onResize); clearInterval(_t) })
+
+const nowTs = ref(Date.now()), _t = setInterval(() => { nowTs.value = Date.now() }, 1000)
+
+const cd = computed(() => {
+  if (!store.deadline) return { days:'--',hours:'--',mins:'--',secs:'--',overdue:false }
+  const r = store.deadline - nowTs.value
+  if (r <= 0) return { days:'00',hours:'00',mins:'00',secs:'00',overdue:true }
+  return { days:String(Math.floor(r/86400000)).padStart(2,'0'), hours:String(Math.floor((r%86400000)/3600000)).padStart(2,'0'), mins:String(Math.floor((r%3600000)/60000)).padStart(2,'0'), secs:String(Math.floor((r%60000)/1000)).padStart(2,'0'), overdue:false }
 })
-onBeforeUnmount(() => window.removeEventListener('resize', onResize))
+const cdBg = computed(() => {
+  if (cd.value.overdue) return 'bg-red-950/30 border border-red-800/40'
+  if (!store.deadline) return 'card'
+  const r = store.deadline - nowTs.value
+  if (r < 86400000) return 'bg-red-950/20 border border-red-800/30'
+  if (r < 3*86400000) return 'bg-yellow-950/20 border border-yellow-800/30'
+  return 'card'
+})
 
-const done = computed(() => store.units.filter((u) => isDone(u.id)).length)
-const total = computed(() => store.units.length)
-
+const done = computed(() => store.units.filter(u=>isDone(u.id)).length), total = computed(() => store.units.length)
 const banner = ref(null)
-let prevDone = null
-let lastMilestone = 0
-
-watch(done, (n) => {
-  if (prevDone === null) {
-    prevDone = n
-    return
+let prevDone = null, lastMilestone = 0
+watch(done, n => {
+  if (prevDone===null){prevDone=n;return}
+  if (n>prevDone && store.currentPeriod===store.realCurrentPeriod) {
+    for(const m of[50,75,100]){ const thr=Math.ceil((total.value*m)/100); if(n>=thr&&prevDone<thr&&lastMilestone<m){lastMilestone=m;celebrate(m)} }
   }
-  if (n > prevDone && store.currentPeriod === store.realCurrentPeriod) {
-    for (const m of [50, 75, 100]) {
-      const thr = Math.ceil((total.value * m) / 100)
-      if (n >= thr && prevDone < thr && lastMilestone < m) {
-        lastMilestone = m
-        celebrate(m)
-      }
-    }
-  }
-  prevDone = n
+  prevDone=n
 })
-
-watch(
-  () => store.currentPeriod,
-  () => {
-    prevDone = done.value
-    lastMilestone = 0
-    for (const m of [50, 75, 100]) {
-      if (done.value >= Math.ceil((total.value * m) / 100)) lastMilestone = m
-    }
-  }
-)
-
-function celebrate(m) {
-  const colors = ['#00FF9C', '#10F5A0', '#00C9B6']
-  confetti({ particleCount: 130, spread: 72, origin: { y: 0.6 }, colors })
-  if (m === 100) {
-    confetti({ particleCount: 220, spread: 130, origin: { y: 0.5 }, colors })
-    banner.value = '🏆 本月结账全部完成!'
-  } else {
-    banner.value = `已完成 ${m}%! 继续冲刺 💪`
-  }
-  setTimeout(() => (banner.value = null), 3600)
+watch(()=>store.currentPeriod,()=>{ prevDone=done.value;lastMilestone=0; for(const m of[50,75,100]){if(done.value>=Math.ceil((total.value*m)/100))lastMilestone=m} })
+function celebrate(m){
+  confetti({particleCount:140,spread:75,origin:{y:0.6},colors:['#008A4C','#22c55e','#fbbf24']})
+  if(m===100){confetti({particleCount:260,spread:140,origin:{y:0.5},colors:['#008A4C','#22c55e','#fbbf24']});banner.value='🏆 本月结账全部完成!'}
+  else if(m===75)banner.value='🔥 已完成 75%!'
+  else banner.value='⚡ 已完成 50%!'
+  setTimeout(()=>banner.value=null,4000)
 }
-
-async function onPeriodChange() {
-  await loadPeriod(store.currentPeriod)
-}
+async function onPeriodChange(){await loadPeriod(store.currentPeriod)}
 </script>

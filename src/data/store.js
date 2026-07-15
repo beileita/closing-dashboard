@@ -11,6 +11,7 @@ export const store = reactive({
   selectedTab: 'all',
   expanded: new Set(),
   loading: true,
+  deadline: null, // 结账截止时间戳
 
   view: 'dashboard', // dashboard | maintenance | admin
   logs: [],
@@ -41,6 +42,7 @@ export async function init() {
   store.realCurrentPeriod = monthStr(now)
   store.currentPeriod = store.realCurrentPeriod
   store.periods = [store.realCurrentPeriod, monthStr(new Date(now.getFullYear(), now.getMonth() - 1, 1))]
+  store.deadline = await backend.getDeadline()
   await loadPeriod(store.currentPeriod)
   // 订阅实时变更(模拟 CloudBase watch)
   backend.watch(store.realCurrentPeriod, (period, changes) => {
@@ -120,6 +122,13 @@ export async function deleteUnit(id) {
 // ---- 管理 ----
 export async function loadLogs() {
   store.logs = await backend.getLogs()
+}
+export async function loadDeadline() {
+  store.deadline = await backend.getDeadline()
+}
+export async function setDeadline(ts) {
+  store.deadline = await backend.setDeadline(ts)
+  addToast('截止时间已更新', 'ok')
 }
 export async function verifyAdmin(pwd) {
   store.adminAuthed = await backend.verifyAdmin(pwd)
