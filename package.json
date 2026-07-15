@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cloudbase/js-sdk": "^3.6.2",
     "canvas-confetti": "^1.9.3",
     "echarts": "^5.5.1",
     "echarts-gl": "^2.0.9",
