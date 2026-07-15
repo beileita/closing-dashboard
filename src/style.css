@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: radial-gradient(ellipse at 50% -10%, #115c40 0%, #0a3526 45%, #062018 100%);
+  color: #e6fff2;
+  font-family: Inter, system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* tech grid overlay */
+#app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 255, 156, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 156, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass {
+  background: linear-gradient(160deg, rgba(14, 60, 42, 0.6), rgba(6, 28, 20, 0.55));
+  border: 1px solid rgba(0, 255, 156, 0.28);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 30px rgba(0, 255, 156, 0.06), 0 6px 36px rgba(0, 0, 0, 0.35);
+}
+
+.neon {
+  text-shadow: 0 0 8px rgba(0, 255, 156, 0.7);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 156, 0.28);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 156, 0.48);
+}
+
+@keyframes pulseGreen {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 156, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(0, 255, 156, 0);
+  }
+}
+.dot-done {
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.live-dot {
+  animation: blink 1.4s infinite;
+}
+
+/* 完成闪光(全屏) */
+.flash-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  background: radial-gradient(circle at 50% 45%, rgba(0, 255, 156, 0.2), transparent 62%);
+  animation: flashFade 0.85s ease-out forwards;
+}
+@keyframes flashFade {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* toast */
+.toast-enter-active {
+  transition: all 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.toast-leave-active {
+  transition: all 0.3s ease;
+}
+.toast-enter-from {
+  opacity: 0;
+  transform: translateY(-16px) scale(0.96);
+}
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 庆祝横幅 */
+@keyframes bannerIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@layer components {
+  .ipt {
+    @apply bg-tech-panel border border-tech-border rounded-md px-3 py-1.5 text-sm text-tech-fg outline-none focus:border-tech-green w-full;
+  }
+  .btn {
+    @apply rounded-md px-4 py-1.5 text-sm transition;
+  }
+  .btn-primary {
+    @apply bg-tech-green/15 border border-tech-green text-tech-green hover:bg-tech-green/25;
+  }
+  .btn-ghost {
+    @apply border border-tech-border text-tech-muted hover:text-tech-green;
+  }
+}
