@@ -1,0 +1,15 @@
+{
+  "envId": "ysy-server-d7gwidmgv14f8da68",
+  "framework": {
+    "name": "vue",
+    "plugins": {
+      "client": {
+        "use": "@cloudbase/framework-plugin-website",
+        "inputs": {
+          "buildCommand": "npm run build",
+          "outputPath": "dist"
+        }
+      }
+    }
+  }
+}
