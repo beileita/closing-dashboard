@@ -1,10 +1,11 @@
 <template>
   <div class="flex flex-col h-full">
-    <div class="flex border-b border-gray-700/30 px-1">
+    <div class="flex px-1" :style="{borderBottom:'1px solid '+(store.theme==='dark'?'rgba(75,85,99,0.3)':'rgba(0,0,0,0.06)')}">
       <button v-for="t in tabs" :key="t.key" @click="setTab(t.key)"
-        :class="['flex-1 py-2.5 text-xs font-medium transition relative', store.selectedTab===t.key?'text-green-400':'text-gray-500 hover:text-gray-300']">
+        :class="['flex-1 py-2.5 text-xs font-medium transition relative', store.selectedTab===t.key?'':'hover:text-gray-300']"
+        :style="{color:store.selectedTab===t.key?'var(--accent)':'var(--text-muted)'}">
         {{ t.label }} <span class="ml-1 opacity-50 font-mono">({{ countFor(t.key) }})</span>
-        <span v-if="store.selectedTab===t.key" class="absolute bottom-0 left-3 right-3 h-0.5 bg-green-500 rounded-full"></span>
+        <span v-if="store.selectedTab===t.key" class="absolute bottom-0 left-3 right-3 h-0.5 rounded-full" :style="{background:store.theme==='dark'?'#22c55e':'var(--accent)'}"></span>
       </button>
     </div>
     <div class="flex-1 overflow-y-auto p-1.5">

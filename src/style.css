@@ -2,59 +2,247 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+/* ============================================================
+   Theme System — CSS Custom Properties
+   [data-theme="dark"] — Night mode (improved contrast)
+   [data-theme="light"] — Day mode
+   ============================================================ */
+
+:root,
+[data-theme="dark"] {
+  --color-scheme: dark;
+
+  /* Background */
+  --bg-body: #0a1218;
+  --bg-card: #111b23;
+  --bg-card-alt: #16222b;
+  --bg-input: #0b151d;
+  --bg-overlay: rgba(0, 0, 0, 0.78);
+
+  /* Borders */
+  --border: rgba(148, 163, 178, 0.12);
+  --border-light: rgba(148, 163, 178, 0.08);
+  --border-accent: rgba(0, 194, 110, 0.2);
+
+  /* Text */
+  --text-primary: #e6edf3;
+  --text-secondary: #8899aa;
+  --text-muted: #556677;
+  --text-inverse: #0a1218;
+
+  /* Accent — brighter green for better visibility */
+  --accent: #00c26e;
+  --accent-soft: #22c55e;
+  --accent-dim: rgba(0, 194, 110, 0.12);
+  --accent-glow: rgba(0, 194, 110, 0.4);
+
+  /* Status */
+  --danger: #f85149;
+  --warning: #d29922;
+
+  /* Map */
+  --map-land: #1b2a37;
+  --map-border: rgba(148, 163, 178, 0.22);
+  --map-hover: #253444;
+  --map-scatter-done: #00c26e;
+  --map-scatter-undone: #3d4f60;
+  --map-tooltip-bg: rgba(17, 27, 35, 0.97);
+
+  /* Grid */
+  --grid-color: rgba(0, 194, 110, 0.04);
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-elevated: 0 2px 4px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(136, 153, 170, 0.18);
+  --scrollbar-thumb-hover: rgba(136, 153, 170, 0.32);
+}
+
+[data-theme="light"] {
+  --color-scheme: light;
+
+  /* Background */
+  --bg-body: #f3f5f9;
+  --bg-card: #ffffff;
+  --bg-card-alt: #f8f9fb;
+  --bg-input: #eef1f5;
+  --bg-overlay: rgba(0, 0, 0, 0.45);
+
+  /* Borders */
+  --border: rgba(0, 0, 0, 0.08);
+  --border-light: rgba(0, 0, 0, 0.05);
+  --border-accent: rgba(0, 138, 76, 0.2);
+
+  /* Text */
+  --text-primary: #15222e;
+  --text-secondary: #556677;
+  --text-muted: #8899aa;
+  --text-inverse: #ffffff;
+
+  /* Accent */
+  --accent: #008A4C;
+  --accent-soft: #16a34a;
+  --accent-dim: rgba(0, 138, 76, 0.08);
+  --accent-glow: rgba(0, 138, 76, 0.25);
+
+  /* Status */
+  --danger: #d1242f;
+  --warning: #9a6700;
+
+  /* Map */
+  --map-land: #e4e8ef;
+  --map-border: rgba(0, 0, 0, 0.15);
+  --map-hover: #d5dbe3;
+  --map-scatter-done: #008A4C;
+  --map-scatter-undone: #b8c0ca;
+  --map-tooltip-bg: rgba(255, 255, 255, 0.97);
+
+  /* Grid */
+  --grid-color: rgba(0, 138, 76, 0.06);
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 2px 4px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(0, 0, 0, 0.12);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.22);
+}
+
+/* ============================================================
+   Global
+   ============================================================ */
 
 html, body, #app { height: 100%; margin: 0; }
 
+html {
+  color-scheme: var(--color-scheme);
+}
+
 body {
-  background: #070b14;
-  color: #f0f2f5;
+  background: var(--bg-body);
+  color: var(--text-primary);
   font-family: Inter, system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.35s ease, color 0.35s ease;
 }
 
-/* Grid */
+/* Grid overlay */
 #app::before {
   content: '';
   position: fixed; inset: 0;
   background-image:
-    linear-gradient(rgba(0,138,76,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,138,76,0.025) 1px, transparent 1px);
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
   background-size: 60px 60px;
   pointer-events: none; z-index: 0;
+  transition: background-image 0.35s ease;
 }
 
-/* Scrollbar */
+/* ============================================================
+   Scrollbar
+   ============================================================ */
+
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(139,148,158,0.2); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(139,148,158,0.35); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
-/* Cards */
+/* ============================================================
+   Card system
+   ============================================================ */
+
 .card {
-  background: #131826;
-  border: 1px solid rgba(156,163,175,0.1);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
-}
-.card-elevated {
-  background: #1a1f2e;
-  border: 1px solid rgba(156,163,175,0.12);
-  border-radius: 14px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.4);
-}
-.card-map {
-  background: #131826;
-  border: 1px solid rgba(0,138,76,0.15);
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,138,76,0.06);
+  box-shadow: var(--shadow-card);
+  transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
 }
 
-/* Animations */
+.card-elevated {
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-elevated);
+  transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.card-map {
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card), 0 0 0 1px rgba(0, 138, 76, 0.06);
+  transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+/* ============================================================
+   Theme overrides for Tailwind dark utility classes
+   In light mode, remap grays to fit the light palette
+   ============================================================ */
+
+[data-theme="light"] .bg-gray-900 { background-color: #f0f2f5 !important; }
+[data-theme="light"] .bg-gray-800 { background-color: #f5f7fa !important; }
+[data-theme="light"] .bg-gray-700\/20 { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-gray-700\/10 { background-color: rgba(0,0,0,0.03) !important; }
+[data-theme="light"] .bg-gray-900\/60 { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .bg-red-950\/30 { background-color: rgba(209,36,47,0.07) !important; }
+[data-theme="light"] .bg-red-950\/20 { background-color: rgba(209,36,47,0.05) !important; }
+[data-theme="light"] .bg-yellow-950\/20 { background-color: rgba(154,103,0,0.06) !important; }
+[data-theme="light"] .bg-green-700\/15 { background-color: rgba(0,138,76,0.08) !important; }
+[data-theme="light"] .bg-green-700\/10 { background-color: rgba(0,138,76,0.05) !important; }
+[data-theme="light"] .bg-green-700\/25 { background-color: rgba(0,138,76,0.12) !important; }
+
+[data-theme="light"] .text-white { color: var(--text-primary) !important; }
+[data-theme="light"] .text-gray-300 { color: var(--text-primary) !important; }
+[data-theme="light"] .text-gray-400 { color: var(--text-secondary) !important; }
+[data-theme="light"] .text-gray-500 { color: var(--text-muted) !important; }
+[data-theme="light"] .text-gray-600 { color: #aabbcc !important; }
+
+[data-theme="light"] .border-gray-700 { border-color: var(--border) !important; }
+[data-theme="light"] .border-gray-700\/30 { border-color: var(--border-light) !important; }
+[data-theme="light"] .border-gray-700\/20 { border-color: var(--border-light) !important; }
+[data-theme="light"] .border-gray-600 { border-color: rgba(0,0,0,0.12) !important; }
+[data-theme="light"] .border-gray-500 { border-color: rgba(0,0,0,0.18) !important; }
+[data-theme="light"] .border-red-800\/40 { border-color: rgba(209,36,47,0.25) !important; }
+[data-theme="light"] .border-red-800\/30 { border-color: rgba(209,36,47,0.18) !important; }
+[data-theme="light"] .border-yellow-800\/30 { border-color: rgba(154,103,0,0.18) !important; }
+[data-theme="light"] .border-green-600\/50 { border-color: rgba(0,138,76,0.35) !important; }
+[data-theme="light"] .border-green-600\/30 { border-color: rgba(0,138,76,0.2) !important; }
+[data-theme="light"] .border-green-500 { border-color: var(--accent) !important; }
+
+[data-theme="light"] .text-green-400 { color: var(--accent) !important; }
+[data-theme="light"] .text-green-300 { color: #16a34a !important; }
+[data-theme="light"] .text-red-400 { color: var(--danger) !important; }
+[data-theme="light"] .text-yellow-400 { color: var(--warning) !important; }
+[data-theme="light"] .text-gray-500 { color: var(--text-muted) !important; }
+[data-theme="light"] .text-gray-600 { color: #aabbcc !important; }
+
+[data-theme="light"] .hover\:bg-gray-700\/20:hover { background-color: rgba(0,0,0,0.04) !important; }
+[data-theme="light"] .hover\:bg-gray-700\/10:hover { background-color: rgba(0,0,0,0.03) !important; }
+[data-theme="light"] .hover\:text-gray-300:hover { color: var(--text-primary) !important; }
+[data-theme="light"] .hover\:text-white:hover { color: var(--text-primary) !important; }
+[data-theme="light"] .hover\:text-green-400:hover { color: var(--accent) !important; }
+[data-theme="light"] .hover\:text-red-400:hover { color: var(--danger) !important; }
+[data-theme="light"] .hover\:border-gray-500:hover { border-color: rgba(0,0,0,0.18) !important; }
+[data-theme="light"] .hover\:border-green-600\/30:hover { border-color: rgba(0,138,76,0.2) !important; }
+[data-theme="light"] .hover\:bg-green-700\/10:hover { background-color: rgba(0,138,76,0.05) !important; }
+
+[data-theme="light"] .shadow-lg { box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important; }
+
+/* focus ring */
+[data-theme="light"] .focus\:border-green-600:focus { border-color: var(--accent) !important; }
+
+/* ============================================================
+   Animations
+   ============================================================ */
+
 @keyframes pulseGreen {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0,138,76,0.6); }
-  50% { box-shadow: 0 0 0 6px rgba(0,138,76,0); }
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  50% { box-shadow: 0 0 0 6px rgba(0, 194, 110, 0); }
 }
 .dot-done { animation: pulseGreen 2.4s infinite; }
 
@@ -63,7 +251,7 @@ body {
 
 .flash-overlay {
   position: fixed; inset: 0; pointer-events: none; z-index: 60;
-  background: radial-gradient(circle at 50% 45%, rgba(0,138,76,0.12), transparent 65%);
+  background: radial-gradient(circle at 50% 45%, var(--accent-dim), transparent 65%);
   animation: flashFade 0.9s ease-out forwards;
 }
 @keyframes flashFade { 0%{opacity:0} 15%{opacity:1} 100%{opacity:0} }
@@ -84,20 +272,80 @@ body {
 
 .tabular-nums { font-variant-numeric: tabular-nums; }
 
-/* Component classes */
+/* ============================================================
+   Component classes
+   ============================================================ */
+
 @layer components {
   .ipt {
-    @apply bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white outline-none
-           focus:border-green-600 w-full transition duration-200 placeholder:text-gray-500;
+    @apply rounded-lg px-3 py-2 text-sm outline-none w-full transition duration-200 placeholder:text-gray-500;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
   }
+  .ipt:focus {
+    border-color: var(--accent);
+  }
+
+  [data-theme="light"] .ipt {
+    background: #eef1f5;
+    border-color: rgba(0,0,0,0.1);
+    color: var(--text-primary);
+  }
+
   .btn {
     @apply rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer;
   }
   .btn-primary {
-    @apply bg-green-700/15 border border-green-600/50 text-green-400
-           hover:bg-green-700/25 active:scale-[0.97];
+    background: var(--accent-dim);
+    border: 1px solid var(--border-accent);
+    color: var(--accent);
+    @apply rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer;
+  }
+  .btn-primary:hover {
+    background: rgba(0, 138, 76, 0.15);
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
   }
   .btn-ghost {
-    @apply border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    @apply rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer;
+    background: transparent;
   }
+  .btn-ghost:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+}
+
+/* ============================================================
+   Theme toggle button
+   ============================================================ */
+
+.theme-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 16px;
+  line-height: 1;
+}
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ============================================================
+   Connection error overlay
+   ============================================================ */
+
+.connect-error-overlay {
+  background: var(--bg-overlay);
 }

@@ -16,7 +16,7 @@
       <!-- Subtabs -->
       <div class="flex gap-1.5 py-3">
         <button v-for="t in subs" :key="t.key" @click="sub=t.key"
-          :class="['px-4 py-2 text-sm rounded-xl font-medium transition', sub===t.key?'bg-blue-500/15 text-green-400':'card text-gray-500 hover:text-gray-300']">
+          :class="['px-4 py-2 text-sm rounded-xl font-medium transition', sub===t.key?'bg-green-700/15 text-green-400':'card text-gray-500 hover:text-gray-300']">
           {{ t.label }}
         </button>
       </div>
@@ -26,39 +26,30 @@
         <div class="card flex flex-col w-full md:w-[380px] shrink-0 overflow-hidden">
           <div class="px-4 py-3 border-b border-gray-700/20 flex items-center justify-between">
             <span class="text-white font-medium">单位 <span class="text-gray-500 text-xs">({{ store.units.length }})</span></span>
-            <button @click="startAdd" class="btn btn-primary !py-1">+ 新增</button>
+            <button @click="openAdd" class="btn btn-primary !py-1">+ 新增</button>
           </div>
           <div class="flex-1 overflow-y-auto p-2">
             <div v-for="u in store.units" :key="u.id" class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-gray-700/20 group">
               <span class="flex-1 truncate text-sm text-white">{{ u.name }}</span>
               <span class="text-xs text-gray-500 hidden sm:inline truncate max-w-[110px]">{{ u.province }}·{{ u.city }}</span>
-              <button @click="startEdit(u)" class="text-xs text-gray-500 hover:text-green-400 transition">编辑</button>
+              <button @click="openEdit(u)" class="text-xs text-gray-500 hover:text-green-400 transition">编辑</button>
               <button @click="onDel(u)" class="text-xs text-gray-500 hover:text-red-400 transition">删除</button>
             </div>
           </div>
         </div>
 
-        <div class="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto md:overflow-visible">
-          <div class="card p-4">
-            <div class="text-white font-medium mb-3">{{ form.id?'编辑单位':'新增单位' }}</div>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div class="col-span-2 md:col-span-3 flex flex-col gap-1"><label class="text-xs text-gray-400">单位名称</label><input v-model="form.name" class="ipt" placeholder="如:上海陆家嘴中心" /></div>
-              <div class="flex flex-col gap-1"><label class="text-xs text-gray-400">省</label><input v-model="form.province" class="ipt" list="prov-list" /></div>
-              <div class="flex flex-col gap-1"><label class="text-xs text-gray-400">市</label><input v-model="form.city" class="ipt" /></div>
-              <div class="flex flex-col gap-1"><label class="text-xs text-gray-400">区/县</label><input v-model="form.district" class="ipt" /></div>
-              <div class="flex flex-col gap-1"><label class="text-xs text-gray-400">负责人</label><input v-model="form.owner" class="ipt" /></div>
-              <div class="flex flex-col gap-1"><label class="text-xs text-gray-400">经度</label><input v-model.number="form.lng" type="number" step="0.0001" class="ipt" /></div>
-              <div class="flex flex-col gap-1"><label class="text-xs text-gray-400">纬度</label><input v-model.number="form.lat" type="number" step="0.0001" class="ipt" /></div>
-            </div>
-            <div class="flex gap-2 mt-4"><button @click="save" class="btn btn-primary">保存</button><button @click="resetForm" class="btn btn-ghost">清空</button></div>
-            <datalist id="prov-list"><option v-for="p in provinces" :key="p" :value="p"></option></datalist>
-          </div>
-          <div class="card flex-1 overflow-hidden relative min-h-[240px]">
-            <div class="absolute top-3 left-3 z-10 text-xs text-gray-400 card px-2.5 py-1 pointer-events-none">点击地图拾取经纬度</div>
-            <UnitPickerMap :lng="form.lng" :lat="form.lat" @pick="onPick" />
+        <!-- Right: empty state or instructions -->
+        <div class="flex-1 card flex items-center justify-center min-h-0 overflow-hidden">
+          <div class="text-center text-gray-500">
+            <div class="text-4xl mb-3 opacity-30">🗺️</div>
+            <div class="text-sm">点击「新增」按钮打开地图选址</div>
+            <div class="text-xs mt-1 text-gray-600">支持省/市/区级下钻 · 任意坐标拾取</div>
           </div>
         </div>
       </div>
+
+      <!-- Modal -->
+      <UnitFormModal v-if="showModal" :unit="editingUnit" @close="closeModal" @saved="closeModal" />
 
       <!-- System management -->
       <div v-else class="flex-1 overflow-y-auto">
@@ -116,10 +107,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
-import { store, addUnit, updateUnit, deleteUnit, verifyAdmin, resetPeriod, changePwd, loadLogs, setDeadline } from '../data/store'
-import { provinceAdcode } from '../data/adcode'
-import UnitPickerMap from './UnitPickerMap.vue'
+import { ref, watch } from 'vue'
+import { store, deleteUnit, verifyAdmin, resetPeriod, changePwd, loadLogs, setDeadline } from '../data/store'
+import UnitFormModal from './UnitFormModal.vue'
 
 const subs = [{ key:'units', label:'单位维护' },{ key:'system', label:'系统管理' }]
 const sub = ref('units')
@@ -127,17 +117,13 @@ const sub = ref('units')
 const pwd = ref(''), err = ref(false)
 async function onLogin() { err.value = !(await verifyAdmin(pwd.value)); if(store.adminAuthed) await loadLogs() }
 
-const provinces = Object.keys(provinceAdcode)
-const form = reactive({ id:null, name:'', province:'', city:'', district:'', owner:'', lng:null, lat:null })
-function resetForm() { Object.assign(form, { id:null, name:'', province:'', city:'', district:'', owner:'', lng:null, lat:null }) }
-function startAdd() { resetForm() }
-function startEdit(u) { Object.assign(form, { id:u.id, name:u.name, province:u.province, city:u.city, district:u.district||'', owner:u.owner||'', lng:u.lng, lat:u.lat }) }
-function onPick(p) { if(p.lng!=null) form.lng=p.lng; if(p.lat!=null) form.lat=p.lat; if(p.province) form.province=p.province; if(p.city) form.city=p.city; if(p.district) form.district=p.district }
-async function save() {
-  if(!form.name||!form.province||!form.city||form.lng==null||form.lat==null) { alert('请填写名称/省/市，并在地图上拾取经纬度'); return }
-  const data = { name:form.name, province:form.province, city:form.city, district:form.district, owner:form.owner, lng:form.lng, lat:form.lat }
-  if(form.id) await updateUnit(form.id, data); else await addUnit(data); resetForm()
-}
+// Modal state
+const showModal = ref(false)
+const editingUnit = ref(null)
+function openAdd() { editingUnit.value = null; showModal.value = true }
+function openEdit(u) { editingUnit.value = u; showModal.value = true }
+function closeModal() { showModal.value = false; editingUnit.value = null }
+
 async function onDel(u) { if(confirm(`删除「${u.name}」?`)) await deleteUnit(u.id) }
 
 const oldPwd=ref(''), newPwd=ref(''), dlDate=ref(''), dlTime=ref('18:00'), dlSaved=ref(false)

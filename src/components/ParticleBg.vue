@@ -4,9 +4,10 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { store } from '../data/store'
 
 const el = ref(null)
-let raf, renderer, scene, camera, points, onResize
+let raf, renderer, scene, camera, points, onResize, mat
 
 onMounted(async () => {
   const THREE = await import('three')
@@ -24,11 +25,12 @@ onMounted(async () => {
   }
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-  const mat = new THREE.PointsMaterial({
-    color: 0x008A4C,
+  const particleColor = store.theme === 'dark' ? 0x00c26e : 0x008A4C
+  mat = new THREE.PointsMaterial({
+    color: particleColor,
     size: 2.0,
     transparent: true,
-    opacity: 0.25,
+    opacity: store.theme === 'dark' ? 0.25 : 0.15,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   })
