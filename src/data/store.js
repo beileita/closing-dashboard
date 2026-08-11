@@ -105,6 +105,7 @@ let _unitsWatcher = null
 let _prevProgress = {}
 let _initPhase = true
 let _pendingToggle = null // { unitId, timer }
+let _unitsRefreshTimer = null // units 兜底刷新（watch 出错/触顶时启用）
 
 // ---- 轮询降级 ----
 let _pollTimer = null
@@ -121,6 +122,29 @@ function stopPolling() {
   if (_pollTimer) {
     clearInterval(_pollTimer)
     _pollTimer = null
+  }
+}
+
+/**
+ * units 兜底刷新（30s）：watch 出错或可能触顶截断时启用，
+ * 保证单位列表仍能同步（否则只能靠刷新页面）
+ */
+function startUnitsRefresh() {
+  if (_unitsRefreshTimer) return
+  console.warn('[store] units watch 不可用 — 开启 30s 兜底刷新')
+  _unitsRefreshTimer = setInterval(async () => {
+    try {
+      store.units = await backend.getUnits()
+    } catch (e) {
+      /* 静默重试 */
+    }
+  }, 30000)
+}
+
+function stopUnitsRefresh() {
+  if (_unitsRefreshTimer) {
+    clearInterval(_unitsRefreshTimer)
+    _unitsRefreshTimer = null
   }
 }
 
@@ -219,13 +243,15 @@ function startUnitsWatch() {
   }
 
   _unitsWatcher = watchUnits(
-    // onChange — 直接更新 store.units
-    (units) => {
+    // onChange — 直接更新 store.units；触顶（恰好 100 条）时兜底刷新
+    (units, _changes, { hitCap } = {}) => {
       store.units = units
+      if (hitCap) startUnitsRefresh()
     },
-    // onError
+    // onError — units 原本无降级，出错时兜底刷新
     (err) => {
       console.warn('[store] units watch error:', err?.message || err)
+      startUnitsRefresh()
     }
   )
 }
@@ -524,6 +550,7 @@ export async function resetPeriod() {
 
 export function dispose() {
   stopPolling()
+  stopUnitsRefresh()
   if (_progressWatcher) {
     _progressWatcher.close()
     _progressWatcher = null

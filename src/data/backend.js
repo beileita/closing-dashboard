@@ -109,7 +109,9 @@ export function watchProgress(period, gen, onChange, onError) {
   const watcher = d
     .collection('progress')
     .where({ period, gen })
-    .limit(1000)
+    // CloudBase 实时 watch 上限 100（>100 会报 EC_ERR_PARAM_INVALID），
+    // 当前数据量远低于此；触顶风险由 store 侧兜底刷新覆盖
+    .limit(100)
     .watch({
       onChange: (snapshot) => {
         try {
@@ -136,9 +138,9 @@ export function watchProgress(period, gen, onChange, onError) {
 }
 
 /**
- * 监听 units 集合 — 全量（客户端过滤 deleted）
+ * 监听 units 集合 — 仅活跃（服务端过滤 deleted，不占 watch 配额）
  *
- * @param {function} onChange   (Unit[], docChanges) => void
+ * @param {function} onChange   (Unit[], docChanges, {hitCap}) => void
  * @param {function} onError    (Error) => void
  * @returns {{ close: () => void }}
  */
@@ -146,15 +148,15 @@ export function watchUnits(onChange, onError) {
   const d = db()
   const watcher = d
     .collection('units')
+    .where({ deleted: false })
     .orderBy('createdAt', 'asc')
-    .limit(1000)
+    // watch 上限 100；返回恰好 100 条时视为可能截断（hitCap 由调用方兜底）
+    .limit(100)
     .watch({
       onChange: (snapshot) => {
         try {
-          const units = snapshot.docs
-            .filter(doc => !doc.deleted)
-            .map(doc => ({ ...doc, id: doc._id }))
-          onChange(units, snapshot.docChanges || [])
+          const units = snapshot.docs.map(doc => ({ ...doc, id: doc._id }))
+          onChange(units, snapshot.docChanges || [], { hitCap: units.length >= 100 })
         } catch (e) {
           console.error('[watch:units] onChange error', e)
         }
