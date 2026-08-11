@@ -47,6 +47,28 @@ function localLog(action, extra = {}) {
   localLogs.unshift(entry)
 }
 
+/**
+ * 将操作日志写入 CloudBase logs 集合
+ * 异步 fire-and-forget：不阻塞主操作，失败静默
+ */
+async function writeLog(action, extra = {}) {
+  try {
+    const d = await connect()
+    await d.collection('logs').add({
+      action,
+      ts: Date.now(),
+      operator: 'me',
+      device: device(),
+      ...extra,
+    })
+  } catch (e) {
+    // 日志写入失败不影响主流程，仅输出到 console
+    console.warn('[backend] writeLog failed:', e.message || e)
+    // 同时写入本地降级数组，保证离线时也能看到
+    localLog(action, extra)
+  }
+}
+
 // ---- CloudBase 连接 ----
 let cloudReady = null
 let connectError = null
@@ -218,7 +240,7 @@ export const backend = {
     const result = await d.collection('units').add(doc)
     // 回写 id 字段（CloudBase 的 _id 也会自动存在）
     await d.collection('units').doc(result.id).update({ id: result.id })
-    localLog('addUnit', { unitId: result.id })
+    writeLog('addUnit', { unitId: result.id })
     return { id: result.id, ...data }
   },
 
@@ -237,7 +259,7 @@ export const backend = {
 
     // 直接用 _id 定位更新
     await d.collection('units').doc(id).update(patch)
-    localLog('editUnit', { unitId: id })
+    writeLog('editUnit', { unitId: id })
   },
 
   /**
@@ -264,7 +286,7 @@ export const backend = {
     } catch (e) {
       /* 清理失败不影响删除 */
     }
-    localLog('delUnit', { unitId: id })
+    writeLog('delUnit', { unitId: id })
   },
 
   // ---- Progress ----
@@ -336,7 +358,7 @@ export const backend = {
       await d.collection('progress').add(next)
     }
 
-    localLog(next.done ? 'check' : 'uncheck', { period, unitId })
+    writeLog(next.done ? 'check' : 'uncheck', { period, unitId })
     return next
   },
 
@@ -368,7 +390,7 @@ export const backend = {
       }
     }
 
-    localLog('reset', { period, oldGen, newGen })
+    writeLog('reset', { period, oldGen, newGen })
     return newGen
   },
 
@@ -405,7 +427,7 @@ export const backend = {
       /* fall through */
     }
     localConfig.deadline = ts
-    localLog('setDeadline', { deadline: ts })
+    writeLog('setDeadline', { deadline: ts })
     return ts
   },
 
@@ -434,7 +456,7 @@ export const backend = {
       /* fall through */
     }
     localConfig.adminPwd = nu
-    localLog('changePwd')
+    writeLog('changePwd')
     return true
   },
 

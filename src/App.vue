@@ -2,6 +2,13 @@
   <div class="h-full flex flex-col relative z-10">
     <ParticleBg v-if="isDesktop && webgl" />
 
+    <!-- Mobile: full-width title bar at top -->
+    <div class="md:hidden relative z-10 px-4 pt-2.5 pb-1.5">
+      <div class="card px-4 py-2 text-center">
+        <span class="text-sm font-bold tracking-wider" :style="{color:'var(--text-primary)'}">青岛啤酒结账进度看板</span>
+      </div>
+    </div>
+
     <!-- Compact Top Bar -->
     <header class="relative z-10 flex items-center gap-3 px-4 py-2.5">
       <div class="flex items-center gap-2 shrink-0">
@@ -20,9 +27,13 @@
         </template>
       </div>
 
-      <div class="flex-1 text-center">
+      <!-- Desktop: title in header -->
+      <div class="flex-1 text-center hidden md:block">
         <span class="card px-4 py-1.5 text-sm md:text-base font-bold tracking-wider inline-block" :style="{color:'var(--text-primary)'}">青岛啤酒结账进度看板</span>
       </div>
+
+      <!-- Mobile: spacer -->
+      <div class="flex-1 md:hidden"></div>
 
       <!-- Theme toggle -->
       <button @click="onToggleTheme" class="theme-toggle" :title="store.theme==='dark'?'切换日间模式':'切换夜间模式'">
