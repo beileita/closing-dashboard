@@ -56,9 +56,14 @@
         <div class="grid md:grid-cols-2 gap-4">
           <div class="card p-4">
             <div class="text-white font-medium mb-3">周期管理</div>
-            <div class="text-sm text-gray-400 mb-3">当前周期:<span class="text-white font-mono ml-1">{{ store.currentPeriod }}</span></div>
-            <button @click="onReset" class="btn btn-primary">重置当前周期</button>
-            <p class="text-xs text-gray-600 mt-2">将清空当前周期所有完成标记，便于月末重新开账</p>
+            <div class="text-sm text-gray-400 mb-3">当前会计期:<span class="text-white font-mono ml-1">{{ store.realCurrentPeriod }}</span>
+              <span v-if="store.currentPeriod!==store.realCurrentPeriod" class="text-xs text-yellow-400/80 ml-2">正在查看归档: {{ store.currentPeriod }}</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button @click="onOpenNext" class="btn btn-primary">打开下一会计期 ({{ nextPeriod }})</button>
+              <button @click="onReset" class="btn btn-ghost">重置当前周期</button>
+            </div>
+            <p class="text-xs text-gray-600 mt-2">打开下一会计期：上一会计期进度自动归档（只读保留），新月份从零开始</p>
           </div>
           <div class="card p-4">
             <div class="text-white font-medium mb-3">结账截止时间</div>
@@ -107,8 +112,8 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { store, deleteUnit, verifyAdmin, resetPeriod, changePwd, loadLogs, setDeadline } from '../data/store'
+import { ref, watch, computed } from 'vue'
+import { store, deleteUnit, verifyAdmin, resetPeriod, changePwd, loadLogs, setDeadline, openNextPeriod, nextMonthOf } from '../data/store'
 import UnitFormModal from './UnitFormModal.vue'
 
 const subs = [{ key:'units', label:'单位维护' },{ key:'system', label:'系统管理' }]
@@ -135,6 +140,11 @@ async function onSetDeadline() {
   const d=new Date(dlDate.value); const [hh,mm]=(dlTime.value||'18:00').split(':'); d.setHours(+hh,+mm,0,0)
   await setDeadline(d.getTime()); dlSaved.value=true; setTimeout(()=>dlSaved.value=false,2500)
 }
+const nextPeriod = computed(() => nextMonthOf(store.realCurrentPeriod))
+async function onOpenNext() {
+  if (!confirm(`确认打开下一会计期 ${nextPeriod.value}？\n当前会计期 ${store.realCurrentPeriod} 的进度将归档为只读，\n新周期所有单位从零开始。`)) return
+  await openNextPeriod()
+}
 async function onReset() { if(confirm('重置当前周期?所有完成标记将被清空。')) await resetPeriod() }
 async function onChangePwd() {
   if(!newPwd.value){ alert('请输入新密码'); return }
@@ -142,10 +152,10 @@ async function onChangePwd() {
   if(ok){ oldPwd.value=''; newPwd.value='' } else { alert('原密码错误') }
 }
 
-const labels = { check:'标记完成', uncheck:'取消标记', reset:'周期重置', addUnit:'新增单位', editUnit:'编辑单位', delUnit:'删除单位', changePwd:'修改密码', setDeadline:'设置截止' }
+const labels = { check:'标记完成', uncheck:'取消标记', reset:'周期重置', addUnit:'新增单位', editUnit:'编辑单位', delUnit:'删除单位', changePwd:'修改密码', setDeadline:'设置截止', openNextPeriod:'打开下一会计期' }
 function actionLabel(a) { return labels[a]||a }
 function actionColor(a) {
-  const m={ check:'text-green-400', uncheck:'text-gray-500', reset:'text-yellow-400', addUnit:'text-green-400', editUnit:'text-green-300', delUnit:'text-red-400', changePwd:'text-yellow-400', setDeadline:'text-green-400' }
+  const m={ check:'text-green-400', uncheck:'text-gray-500', reset:'text-yellow-400', addUnit:'text-green-400', editUnit:'text-green-300', delUnit:'text-red-400', changePwd:'text-yellow-400', setDeadline:'text-green-400', openNextPeriod:'text-yellow-400' }
   return m[a]||'text-white'
 }
 function fmt(ts) { const d=new Date(ts); return `${d.getMonth()+1}-${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` }

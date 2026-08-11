@@ -292,9 +292,14 @@ export const backend = {
   // ---- Progress ----
 
   /**
-   * 全量获取当前周期进度（初始化用；运行时由 watchProgress 保持同步）
+   * 全量获取周期进度（初始化用；运行时由 watchProgress 保持同步）
+   *
+   * @param {string} period  周期，如 "2026-08"
+   * @param {object} [opts]
+   * @param {boolean} [opts.archived]  归档周期回查：当前 gen 查不到时
+   *   忽略 gen 全量回查（归档周期可能跨越多次重置，gen 已变）
    */
-  async getProgress(period) {
+  async getProgress(period, opts = {}) {
     try {
       const d = await connect()
       const gen = await ensureGen()
@@ -314,6 +319,26 @@ export const backend = {
           }
         }
         return map
+      }
+      // 归档周期：当前 gen 无数据 → 按 period 全量回查（保留历史完成状态）
+      if (opts.archived) {
+        const { data: all } = await d
+          .collection('progress')
+          .where({ period })
+          .limit(1000)
+          .get()
+        if (all?.length) {
+          const map = {}
+          for (const r of all) {
+            map[r.unitId] = {
+              done: !!r.done,
+              doneAt: r.doneAt || null,
+              operator: r.operator || null,
+              device: r.device || null,
+            }
+          }
+          return map
+        }
       }
     } catch (e) {
       console.warn('[backend] getProgress failed', e)
@@ -399,6 +424,58 @@ export const backend = {
    */
   async getCurrentGen() {
     return ensureGen()
+  },
+
+  // ---- Periods ----
+
+  /**
+   * 获取服务端持久化的当前会计期（多设备一致）
+   * 从未设置过时返回 null
+   */
+  async getCurrentPeriod() {
+    try {
+      const d = await connect()
+      const { data } = await d.collection('config').where({ key: 'currentPeriod' }).get()
+      if (data?.length) return data[0].value
+    } catch (e) {
+      /* fall through */
+    }
+    return null
+  },
+
+  /**
+   * 持久化当前会计期（打开下一会计期 / 日历自然跨月时写回）
+   *
+   * @param {string} period      新会计期，如 "2026-09"
+   * @param {string|null} from   原会计期（null 表示首次初始化，不记日志）
+   */
+  async setCurrentPeriod(period, from = null) {
+    try {
+      const d = await connect()
+      const { data } = await d.collection('config').where({ key: 'currentPeriod' }).get()
+      if (data?.length) {
+        await d.collection('config').doc(data[0]._id).update({ value: period })
+      } else {
+        await d.collection('config').add({ key: 'currentPeriod', value: period })
+      }
+    } catch (e) {
+      /* 持久化失败不影响主流程 */
+    }
+    if (from) writeLog('openNextPeriod', { from, to: period })
+    return period
+  },
+
+  /**
+   * 从 progress 集合汇总出现过的会计期（下拉列表用）
+   */
+  async getPeriods() {
+    try {
+      const d = await connect()
+      const { data } = await d.collection('progress').field({ period: true }).limit(1000).get()
+      return [...new Set((data || []).map(r => r.period).filter(Boolean))].sort().reverse()
+    } catch (e) {
+      return []
+    }
   },
 
   // ---- Config ----

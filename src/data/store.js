@@ -61,6 +61,35 @@ function monthStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+/**
+ * 下一会计期：如 "2026-08" → "2026-09"（12月自动进位到次年1月）
+ */
+export function nextMonthOf(p) {
+  const [y, m] = p.split('-').map(Number)
+  return monthStr(new Date(y, m, 1))
+}
+
+/** 上一会计期：如 "2026-08" → "2026-07"（1月自动退位到上年12月） */
+function prevMonthOf(p) {
+  const [y, m] = p.split('-').map(Number)
+  return monthStr(new Date(y, m - 2, 1))
+}
+
+/** 汇总周期下拉列表：当前会计期 + 上一会计期 + progress 中出现过的所有周期 */
+export async function refreshPeriods() {
+  let extra = []
+  try {
+    extra = await backend.getPeriods()
+  } catch (e) {
+    /* 静默 */
+  }
+  store.periods = [
+    ...new Set([store.realCurrentPeriod, prevMonthOf(store.realCurrentPeriod), ...extra]),
+  ]
+    .sort()
+    .reverse()
+}
+
 let toastSeq = 0
 export function addToast(msg, type = 'ok') {
   const id = ++toastSeq
@@ -216,14 +245,30 @@ export async function init() {
     return
   }
 
-  // 2. 设置周期
-  const now = new Date()
-  store.realCurrentPeriod = monthStr(now)
-  store.currentPeriod = store.realCurrentPeriod
-  store.periods = [
-    store.realCurrentPeriod,
-    monthStr(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
-  ]
+  // 2. 设置周期（服务端持久化，多设备一致）
+  const cal = monthStr(new Date())
+  let active = cal
+  let persisted = null
+  try {
+    persisted = await backend.getCurrentPeriod()
+    // 取「已持久化会计期」与「日历月份」中较新的：
+    //   日历自然跨月 → 自动进入新月份（原有行为）
+    //   管理员手动打开下一会计期 → 以持久化值为准
+    if (persisted && persisted >= cal) active = persisted
+  } catch (e) {
+    /* 读取失败按日历月份 */
+  }
+  // 首次初始化 或 日历已自然跨月 → 写回服务端，保证所有设备一致
+  if (!persisted || persisted !== active) {
+    try {
+      await backend.setCurrentPeriod(active, null)
+    } catch (e) {
+      /* 静默 */
+    }
+  }
+  store.realCurrentPeriod = active
+  store.currentPeriod = active
+  await refreshPeriods()
 
   // 3. 加载截止时间
   try {
@@ -270,7 +315,10 @@ export async function loadPeriod(period) {
 
   try {
     const gen = await backend.getCurrentGen()
-    const progress = await backend.getProgress(period)
+    // 归档周期跨过多次重置（gen 已变）→ 传 archived 允许全量回查
+    const progress = await backend.getProgress(period, {
+      archived: period !== store.realCurrentPeriod,
+    })
     store.progress = progress
     _prevProgress = JSON.parse(JSON.stringify(progress))
 
@@ -416,9 +464,35 @@ export async function changePwd(o, n) {
   return ok
 }
 
+// ---- 打开下一会计期 ----
+
+/**
+ * 归档当前会计期并打开下一月份：
+ * 1. 当前会计期进度原样保留（只读归档，下拉仍可查看）
+ * 2. 服务端持久化新会计期，所有设备同步切换
+ * 3. 新周期从零开始（无任何完成标记）
+ */
+export async function openNextPeriod() {
+  const next = nextMonthOf(store.realCurrentPeriod)
+  try {
+    await backend.setCurrentPeriod(next, store.realCurrentPeriod)
+    store.realCurrentPeriod = next
+    await refreshPeriods()
+    await loadPeriod(next)
+    addToast(`已打开新会计期 ${next}，上一会计期已归档只读`, 'ok')
+  } catch (e) {
+    addToast('打开下一会计期失败：' + (e.message || '未知错误'), 'err')
+  }
+}
+
 // ---- 重置周期 ----
 
 export async function resetPeriod() {
+  // 只允许重置当前会计期，保护归档数据
+  if (store.currentPeriod !== store.realCurrentPeriod) {
+    addToast('只能重置当前会计期，历史周期为只读归档', 'err')
+    return
+  }
   try {
     // 递增 gen → 旧文档集体失效
     const newGen = await backend.resetPeriod(store.currentPeriod)
