@@ -148,7 +148,9 @@ export function watchUnits(onChange, onError) {
   const d = db()
   const watcher = d
     .collection('units')
-    .where({ deleted: false })
+    // 用 neq(true) 而非 { deleted: false }：缺 deleted 字段的历史文档（软删除机制引入前创建）也算活跃，
+    // 与 getUnits() 的客户端过滤 !deleted 语义保持一致，避免旧数据被实时快照"吞掉"
+    .where({ deleted: d.command.neq(true) })
     .orderBy('createdAt', 'asc')
     // watch 上限 100；返回恰好 100 条时视为可能截断（hitCap 由调用方兜底）
     .limit(100)
