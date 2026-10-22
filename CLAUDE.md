@@ -62,6 +62,7 @@ closing-dashboard/
 ├── cloudbaserc.json          # CloudBase 部署配置（envId）
 ├── .env                      # VITE_CLOUDBASE_ENV_ID
 ├── CLAUDE.md                 # ← 你正在读的文件
+├── HANDOFF.md                # 交接文档：部署推送 + 版本管理 + 查库 + 状态快照
 ├── ARCHITECTURE.md           # 架构详解
 ├── TECHNICAL_ROADMAP.md      # 技术路线
 ├── CLOUDBASE_SETUP.md        # CloudBase 安全规则配置
@@ -210,6 +211,10 @@ reactive({
 
 7. **管理员默认密码** → `admin123`，修改后在 config 集合存哈希（当前实际是明文 `localConfig.adminPwd`）
 
+8. **单位列表 42→36 计数 bug（2026-08-12 已修复，`d9cf087`）** → 2026-07-15/16 批量创建的 6 个历史单位文档缺 `deleted` 字段（软删除 7/23 才引入）。软删除过滤**必须**用 `.where({deleted: d.command.neq(true)})`，不能用 `{deleted:false}`——两者对缺失字段语义不一致（客户端 `filter(!deleted)` 视为未删除，服务端 `{deleted:false}` 不匹配）。已修复数据层（补字段）+ 代码层（neq）并部署验证
+
+9. **watch 单查询上限 100 条** → 超限报 `EC_ERR_PARAM_INVALID`。progress watch 按 `{period, gen}` 过滤安全；units watch 虽已服务端过滤 `neq(true)`，但已删文档仍在库中累积，单位总数逼近 100 前需归档策略（`40e1602` 已有 hitCap 兜底刷新）
+
 ---
 
 ## 当前状态
@@ -236,6 +241,11 @@ reactive({
 - [ ] 自定义域名
 - [ ] 单元测试
 - [ ] 性能优化（code-split echarts-gl/three）
+
+### 📅 状态快照（2026-10-22 核查）
+- HEAD `d9cf087` == origin/main，线上正常，units 42 有效 + 34 已删
+- 2026-10 周期 42/42 全部完成；2026-09 仅 1 条记录（9 月几乎未用）
+- 部署/查库命令与运维细节见 HANDOFF.md
 
 ---
 
