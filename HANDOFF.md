@@ -37,7 +37,7 @@ npm run dev        # → http://localhost:5173
 
 ## 3. 版本管理（git）
 
-- **仓库**：`https://github.com/beileita/closing-dashboard.git`，唯一分支 `main`，本地 HEAD 与 origin 同步（2026-10-23 时为 `ef7354e`）
+- **仓库**：`https://github.com/beileita/closing-dashboard.git`，唯一分支 `main`，截至 2026-10-23 本地与 origin 同步；最近功能提交 `ef7354e`（排行榜 v1）
 - **`dist/` 有意纳入 git**（部署方便，构建产物随代码走）
 - `.gitignore`：`node_modules` `.DS_Store` `*.local` `.vite`
 - **提交规范**（看历史即可）：中文 message，conventional 前缀 `feat:` / `fix:` / `docs:` / `baseline:`
@@ -123,7 +123,7 @@ QUERY / INSERT / UPDATE / DELETE 模板见 `tcb db nosql execute --help`。
 
 ## 7. 当前状态快照（2026-10-23 核查）
 
-- **代码**：HEAD `ef7354e` == origin/main，工作区干净（仅未跟踪 `.claude/` `.codex/`）
+- **代码**：main 与 origin 同步，最近功能提交 `ef7354e`（排行榜 v1），工作区干净（仅未跟踪 `.claude/` `.codex/`）
 - **线上**：已部署排行榜 v1 + 2026-10-23 首屏性能优化，units 42 有效 + 34 已删（与 8 月修复后一致）
 - **排行榜**：单位完成时间榜，顶栏/手机标题栏入口；≥1280 停靠 380px，768–1279 浮层，<768 全屏
 - **性能**：首屏阻塞 gzip 约 243KB（vue 31.5 + cloudbase 189.8 + 业务 16.2 + css 5.8）；echarts 169KB 异步、three 173.6KB 空闲加载
