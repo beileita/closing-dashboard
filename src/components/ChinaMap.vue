@@ -224,24 +224,34 @@ function attachEvents() {
   })
 }
 
-let _resizeHandler = null
+let _resizeHandler = null, _ro = null
 onMounted(async () => {
   try { echarts = (await import('../utils/echarts')).default }
   catch (e) { console.warn('ECharts load failed', e); return }
   chart = echarts.init(el.value, null, { renderer:'canvas' })
   attachEvents()
+  // 容器尺寸变化（如排行榜侧边栏开合、移动端切换视图）时自动重绘
+  if (typeof ResizeObserver !== 'undefined') {
+    _ro = new ResizeObserver(() => { if (chart) chart.resize() })
+    _ro.observe(el.value)
+  }
   await loadChina()
+  applySelection(store.selectedUnitId)
   _resizeHandler = ()=>chart&&chart.resize()
   window.addEventListener('resize',_resizeHandler)
 })
-onBeforeUnmount(() => { if(_resizeHandler) window.removeEventListener('resize',_resizeHandler); if(chart)chart.dispose(); chart=null })
+onBeforeUnmount(() => {
+  if(_ro){_ro.disconnect();_ro=null}
+  if(_resizeHandler) window.removeEventListener('resize',_resizeHandler)
+  if(chart)chart.dispose(); chart=null
+})
 
 watch(()=>store.progress, updateData, {deep:true})
 watch(()=>store.units.length, ()=>render())
 watch(()=>store.currentPeriod, ()=>{ drilled.value=null; render() })
 
 let lastHl=null
-watch(()=>store.selectedUnitId, id => {
+function applySelection(id) {
   if(!chart||!chinaReady||!id){lastHl=null;return}
   if(lastHl)chart.dispatchAction({type:'downplay',seriesIndex:lastHl.si,dataIndex:lastHl.di})
   const opt=chart.getOption();let found=null;
@@ -257,7 +267,8 @@ watch(()=>store.selectedUnitId, id => {
       setTimeout(()=>chart.setOption({geo:{center:undefined,zoom:drilled.value?1:1.2}}),3000)
     }
   }else lastHl=null
-})
+}
+watch(()=>store.selectedUnitId, applySelection)
 
 watch(()=>store.pulseUnitId, id => {
   if(!id||!chart||!chinaReady)return

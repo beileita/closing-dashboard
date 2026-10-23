@@ -91,6 +91,7 @@ closing-dashboard/
     │   ├── UnitList.vue      # 左侧单位列表（全部/已完成/未完成分页签）
     │   ├── UnitRow.vue       # 单行：勾选按钮 + 名称 + 时间
     │   ├── Manage.vue        # 管理面板（密码门 + 单位维护 + 系统管理）
+    │   ├── Leaderboard.vue   # 排行榜侧边栏（按完成时间排序，响应式停靠/浮层/全屏）
     │   ├── UnitFormModal.vue # 新增/编辑单位弹窗（内嵌 ECharts 坐标拾取地图）
     │   └── ParticleBg.vue    # Three.js 粒子背景（桌面 WebGL）
     │
@@ -147,6 +148,19 @@ store.js         — reactive() 全局单例状态，所有组件共享
 - **confetti 按需加载**：首次触发里程碑时才 `import('canvas-confetti')`
 - **vendor 分包**：`vite.config.js` 的 `manualChunks` 把 vue / echarts+zrender / @cloudbase 拆成独立 chunk，业务代码更新时第三方包仍可命中长期缓存
 - 初始 HTML 只 preload `vue` 和 `cloudbase`；echarts / three / confetti / 管理页均在需要时请求
+
+---
+
+## 排行榜（2026-10-23）
+
+- **入口**：顶栏最右 `🏆 排行榜`（<1280px 只显示图标）；手机端在标题栏右侧
+- **响应式**：≥1280px 停靠式右侧 380px 独立列（看板压缩、地图自动 resize）；768–1279px 右侧浮层 360px + 遮罩；<768px 全屏面板
+- **榜单**：只统计**当前会计期**（不跟随顶部周期选择器），`store.units` join progress，按 `doneAt` 升序；缺失时间排最后
+- **归档场景**：看板停在归档月时，打开排行榜用 `fetchPeriodProgress(realCurrentPeriod)` 单独拉当前期快照并显示提示；点击单位会先 `loadPeriod` 切回当前期再定位
+- **点击联动**：切看板 →（归档时先切回当前期）→ `selectUnit()`；停靠模式保留侧边栏，浮层/全屏模式自动收起，手机端切到地图视图
+- **状态**：`store.leaderboardOpen` + `toggleLeaderboard()` / `closeLeaderboard()`；组件 `defineAsyncComponent` 按需加载
+- **地图 resize**：ChinaMap 用 ResizeObserver 监听容器尺寸，侧边栏开合 / 移动端视图切换时自动 `chart.resize()`
+- **不改后端**：完全复用现有 units / progress 数据与实时 watch
 
 ---
 
@@ -247,6 +261,7 @@ reactive({
 - Three.js 粒子背景
 - 移动端适配（2D 降级 + 地图/列表切换）
 - 实时时钟 + 倒计时
+- 排行榜侧边栏（2026-10-23）：单位完成时间榜，响应式停靠/浮层/全屏，归档月自动查看当前期
 - 首屏性能优化（2026-10-22）：ECharts 按需引入 + 挂载后动态加载、管理页/坐标弹窗/粒子背景/confetti 全部按需加载、Three.js 延迟到首屏空闲、vendor 分包长期缓存
 
 ### 🔜 待做

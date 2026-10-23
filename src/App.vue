@@ -4,8 +4,11 @@
 
     <!-- Mobile: full-width title bar at top -->
     <div class="md:hidden relative z-10 px-4 pt-2.5 pb-1.5">
-      <div class="card px-4 py-2 text-center">
+      <div class="card px-4 py-2 text-center relative">
         <span class="text-sm font-bold tracking-wider" :style="{color:'var(--text-primary)'}">青岛啤酒结账进度看板</span>
+        <button @click="toggleLeaderboard" aria-label="排行榜" :aria-expanded="store.leaderboardOpen"
+          :class="['absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center text-sm transition',
+            store.leaderboardOpen ? 'bg-green-700/15 text-green-400' : 'text-gray-500']">🏆</button>
       </div>
     </div>
 
@@ -52,12 +55,23 @@
         class="card px-2.5 py-1.5 text-xs text-gray-300 outline-none cursor-pointer">
         <option v-for="p in store.periods" :key="p" :value="p" class="bg-gray-800">{{ p }}</option>
       </select>
+
+      <!-- 排行榜入口（桌面） -->
+      <button @click="toggleLeaderboard" aria-label="排行榜" :aria-expanded="store.leaderboardOpen"
+        :class="['hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition shrink-0',
+          store.leaderboardOpen ? 'bg-green-700/15 text-green-400 border-green-600/30' : 'text-gray-500 border-transparent hover:text-green-400 hover:border-green-600/30']">
+        <span class="text-sm leading-none">🏆</span>
+        <span class="hidden xl:inline">排行榜</span>
+      </button>
     </header>
 
-    <main class="flex-1 flex flex-col min-h-0 relative z-10 overflow-hidden">
-      <Dashboard v-if="store.view==='dashboard'" />
-      <Manage v-else-if="store.view==='manage'" />
-    </main>
+    <div class="flex-1 flex min-h-0 relative z-10 overflow-hidden">
+      <main class="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <Dashboard v-if="store.view==='dashboard'" />
+        <Manage v-else-if="store.view==='manage'" />
+      </main>
+      <Leaderboard v-if="store.leaderboardOpen" :mode="lbMode" />
+    </div>
 
     <div v-if="store.flash>0" :key="'flash'+store.flash" class="flash-overlay"></div>
     <div class="fixed top-14 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
@@ -83,18 +97,25 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, defineAsyncComponent } from 'vue'
-import { store, init, loadPeriod, isDone, setView, dispose, toggleTheme } from './data/store'
+import { store, init, loadPeriod, isDone, setView, dispose, toggleTheme, toggleLeaderboard } from './data/store'
 import { hasWebGL } from './utils/webgl'
 import Dashboard from './components/Dashboard.vue'
 
-// 管理页、粒子背景按需加载，不进入首屏包
+// 管理页、粒子背景、排行榜按需加载，不进入首屏包
 const Manage = defineAsyncComponent(() => import('./components/Manage.vue'))
 const ParticleBg = defineAsyncComponent(() => import('./components/ParticleBg.vue'))
+const Leaderboard = defineAsyncComponent(() => import('./components/Leaderboard.vue'))
 
 const nav = [{ key:'dashboard',label:'看板' },{ key:'manage',label:'管理' }]
 
 const isDesktop = ref(true), webgl = ref(false), particlesReady = ref(false)
-function onResize() { isDesktop.value = window.matchMedia('(min-width:768px)').matches }
+const viewportW = ref(typeof window !== 'undefined' ? window.innerWidth : 1440)
+// ≥1280 停靠列；768–1279 浮层；<768 全屏
+const lbMode = computed(() => viewportW.value >= 1280 ? 'dock' : viewportW.value >= 768 ? 'overlay' : 'full')
+function onResize() {
+  viewportW.value = window.innerWidth
+  isDesktop.value = viewportW.value >= 768
+}
 onMounted(() => {
   onResize(); webgl.value = hasWebGL(); window.addEventListener('resize',onResize); init()
   // 装饰性粒子背景推迟到首屏空闲后再加载（Three.js ~174KB gzip）

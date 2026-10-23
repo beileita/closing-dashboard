@@ -40,6 +40,7 @@ export const store = reactive({
   view: 'dashboard',
   logs: [],
   adminAuthed: false,
+  leaderboardOpen: false,
   toasts: [],
   flash: 0,
   pulseUnitId: null,
@@ -422,6 +423,27 @@ export function setView(v) {
 }
 export function setMobileView(v) {
   store.mobileView = v
+}
+export function toggleLeaderboard() {
+  store.leaderboardOpen = !store.leaderboardOpen
+}
+export function closeLeaderboard() {
+  store.leaderboardOpen = false
+}
+
+/**
+ * 拉取指定周期的进度快照，不改动 store.currentPeriod / store.progress。
+ * 排行榜在「看板停在归档月」时用它取得当前会计期数据。
+ */
+export async function fetchPeriodProgress(period) {
+  try {
+    return await backend.getProgress(period, {
+      archived: period !== store.realCurrentPeriod,
+    })
+  } catch (e) {
+    console.warn('[store] fetchPeriodProgress failed:', e?.message || e)
+    return {}
+  }
 }
 export function isDone(unitId) {
   return !!(store.progress[unitId] && store.progress[unitId].done)
