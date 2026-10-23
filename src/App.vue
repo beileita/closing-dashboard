@@ -1,6 +1,6 @@
 <template>
   <div class="h-full flex flex-col relative z-10">
-    <ParticleBg v-if="isDesktop && webgl" />
+    <ParticleBg v-if="particlesReady && isDesktop && webgl" />
 
     <!-- Mobile: full-width title bar at top -->
     <div class="md:hidden relative z-10 px-4 pt-2.5 pb-1.5">
@@ -82,19 +82,26 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import confetti from 'canvas-confetti'
+import { ref, computed, onMounted, onBeforeUnmount, watch, defineAsyncComponent } from 'vue'
 import { store, init, loadPeriod, isDone, setView, dispose, toggleTheme } from './data/store'
 import { hasWebGL } from './utils/webgl'
-import ParticleBg from './components/ParticleBg.vue'
 import Dashboard from './components/Dashboard.vue'
-import Manage from './components/Manage.vue'
+
+// 管理页、粒子背景按需加载，不进入首屏包
+const Manage = defineAsyncComponent(() => import('./components/Manage.vue'))
+const ParticleBg = defineAsyncComponent(() => import('./components/ParticleBg.vue'))
 
 const nav = [{ key:'dashboard',label:'看板' },{ key:'manage',label:'管理' }]
 
-const isDesktop = ref(true), webgl = ref(false)
+const isDesktop = ref(true), webgl = ref(false), particlesReady = ref(false)
 function onResize() { isDesktop.value = window.matchMedia('(min-width:768px)').matches }
-onMounted(() => { onResize(); webgl.value = hasWebGL(); window.addEventListener('resize',onResize); init() })
+onMounted(() => {
+  onResize(); webgl.value = hasWebGL(); window.addEventListener('resize',onResize); init()
+  // 装饰性粒子背景推迟到首屏空闲后再加载（Three.js ~174KB gzip）
+  const start = () => { particlesReady.value = true }
+  if ('requestIdleCallback' in window) requestIdleCallback(start, { timeout: 3000 })
+  else setTimeout(start, 1500)
+})
 onBeforeUnmount(() => { window.removeEventListener('resize',onResize); clearInterval(_t); dispose() })
 
 const nowTs = ref(Date.now()), _t = setInterval(() => { nowTs.value = Date.now() }, 1000)
@@ -117,6 +124,13 @@ const cdBg = computed(() => {
 const done = computed(() => store.units.filter(u=>isDone(u.id)).length), total = computed(() => store.units.length)
 const banner = ref(null)
 let prevDone = null, lastMilestone = 0
+function syncMilestones() {
+  prevDone = done.value
+  lastMilestone = 0
+  for (const m of [50,75,100]) {
+    if (done.value >= Math.ceil((total.value*m)/100)) lastMilestone = m
+  }
+}
 watch(done, n => {
   if (prevDone===null){prevDone=n;return}
   if (n>prevDone && store.currentPeriod===store.realCurrentPeriod) {
@@ -124,8 +138,17 @@ watch(done, n => {
   }
   prevDone=n
 })
-watch(()=>store.currentPeriod,()=>{ prevDone=done.value;lastMilestone=0; for(const m of[50,75,100]){if(done.value>=Math.ceil((total.value*m)/100))lastMilestone=m} })
-function celebrate(m){
+// 快照加载（初始化 / 切周期 / 重置）只重置基线，不算进度增长
+watch(()=>store.progressRev, syncMilestones, { flush:'sync' })
+watch(()=>store.currentPeriod, syncMilestones)
+let confettiPromise = null
+function loadConfetti() {
+  if (!confettiPromise) confettiPromise = import('canvas-confetti').then(m => m.default)
+  return confettiPromise
+}
+async function celebrate(m){
+  let confetti = () => {}
+  try { confetti = await loadConfetti() } catch (e) { console.warn('confetti load failed', e) }
   confetti({particleCount:140,spread:75,origin:{y:0.6},colors:store.theme==='dark'?['#00c26e','#22c55e','#fbbf24']:['#008A4C','#16a34a','#e8c547']})
   if(m===100){confetti({particleCount:260,spread:140,origin:{y:0.5},colors:store.theme==='dark'?['#00c26e','#22c55e','#fbbf24']:['#008A4C','#16a34a','#e8c547']});banner.value='🏆 本月结账全部完成!'}
   else if(m===75)banner.value='🔥 已完成 75%!'

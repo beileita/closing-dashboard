@@ -27,6 +27,7 @@ import {
 export const store = reactive({
   units: [],
   progress: {},
+  progressRev: 0, // 进度整包快照版本号：变化表示快照加载（非用户操作）
   realCurrentPeriod: '',
   currentPeriod: '',
   periods: [],
@@ -308,6 +309,7 @@ export async function init() {
     const gen = await backend.getCurrentGen()
     const progress = await backend.getProgress(store.currentPeriod)
     store.progress = progress
+    store.progressRev++
     _prevProgress = JSON.parse(JSON.stringify(progress))
 
     // 启动 watcher（失败自动降级轮询）
@@ -346,6 +348,7 @@ export async function loadPeriod(period) {
       archived: period !== store.realCurrentPeriod,
     })
     store.progress = progress
+    store.progressRev++
     _prevProgress = JSON.parse(JSON.stringify(progress))
 
     if (period === store.realCurrentPeriod) {
@@ -535,6 +538,7 @@ export async function resetPeriod() {
       }
     }
     store.progress = fallback
+    store.progressRev++
     _prevProgress = JSON.parse(JSON.stringify(fallback))
 
     // 重启 progress watcher（新 gen）

@@ -80,7 +80,6 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import * as echarts from 'echarts'
 import { store, addUnit, updateUnit } from '../data/store'
 import { provinceAdcode } from '../data/adcode'
 
@@ -114,7 +113,7 @@ const err = ref('')
 
 // ---- Map state ----
 const mapEl = ref(null)
-let chart = null, mapReady = false
+let chart = null, mapReady = false, echarts = null
 const stack = ref([{ label:'全国', mapKey:'china', adcode:null, nameMap:null }])
 const marker = ref(null) // [lng, lat] or null
 const dblclickTs = ref(0) // track last dblclick for hint flash
@@ -253,6 +252,8 @@ async function onSave() {
 let resizeHandler = null
 
 onMounted(async () => {
+  try { echarts = (await import('../utils/echarts')).default }
+  catch (e) { console.warn('ECharts load failed', e); return }
   chart = echarts.init(mapEl.value)
 
   // Load china.json

@@ -112,9 +112,10 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, defineAsyncComponent } from 'vue'
 import { store, deleteUnit, verifyAdmin, resetPeriod, changePwd, loadLogs, setDeadline, openNextPeriod, nextMonthOf } from '../data/store'
-import UnitFormModal from './UnitFormModal.vue'
+// 弹窗内含 ECharts 坐标拾取地图，打开时才加载
+const UnitFormModal = defineAsyncComponent(() => import('./UnitFormModal.vue'))
 
 const subs = [{ key:'units', label:'单位维护' },{ key:'system', label:'系统管理' }]
 const sub = ref('units')

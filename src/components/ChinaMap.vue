@@ -54,7 +54,6 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import * as echarts from 'echarts'
 import { store, selectUnit, toggleUnit, isDone } from '../data/store'
 import { provinceAdcode } from '../data/adcode'
 
@@ -88,7 +87,7 @@ const mapColors = {
 }
 
 const el = ref(null)
-let chart = null, chinaReady = false
+let chart = null, chinaReady = false, echarts = null
 const drilled = ref(null)
 
 const cardUnit = computed(() => store.selectedUnitId ? store.units.find(u => u.id===store.selectedUnitId) : null)
@@ -226,7 +225,15 @@ function attachEvents() {
 }
 
 let _resizeHandler = null
-onMounted(async () => { chart=echarts.init(el.value,null,{renderer:'canvas'}); attachEvents(); await loadChina(); _resizeHandler = ()=>chart&&chart.resize(); window.addEventListener('resize',_resizeHandler) })
+onMounted(async () => {
+  try { echarts = (await import('../utils/echarts')).default }
+  catch (e) { console.warn('ECharts load failed', e); return }
+  chart = echarts.init(el.value, null, { renderer:'canvas' })
+  attachEvents()
+  await loadChina()
+  _resizeHandler = ()=>chart&&chart.resize()
+  window.addEventListener('resize',_resizeHandler)
+})
 onBeforeUnmount(() => { if(_resizeHandler) window.removeEventListener('resize',_resizeHandler); if(chart)chart.dispose(); chart=null })
 
 watch(()=>store.progress, updateData, {deep:true})

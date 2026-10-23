@@ -138,6 +138,18 @@ store.js         — reactive() 全局单例状态，所有组件共享
 
 ---
 
+## 首屏加载与分包（2026-10-22）
+
+- **ECharts 按需引入**：`src/utils/echarts.js` 只注册 `GeoComponent` / `TooltipComponent` / `ScatterChart` / `EffectScatterChart` / `CanvasRenderer`，不要改回 `import * as echarts from 'echarts'`
+- **ECharts 延迟加载**：ChinaMap / UnitFormModal 在 `onMounted` 里 `await import('../utils/echarts')`，顶栏/统计/列表先渲染，地图随后出现
+- **组件按需加载**：App.vue 用 `defineAsyncComponent` 加载 Manage / ParticleBg；Manage 内再异步加载 UnitFormModal
+- **Three.js 空闲加载**：粒子背景在 `requestIdleCallback`（不支持时 setTimeout 1.5s）后才挂载，不再和首屏抢带宽
+- **confetti 按需加载**：首次触发里程碑时才 `import('canvas-confetti')`
+- **vendor 分包**：`vite.config.js` 的 `manualChunks` 把 vue / echarts+zrender / @cloudbase 拆成独立 chunk，业务代码更新时第三方包仍可命中长期缓存
+- 初始 HTML 只 preload `vue` 和 `cloudbase`；echarts / three / confetti / 管理页均在需要时请求
+
+---
+
 ## 地图系统
 
 ### 数据源
@@ -215,6 +227,8 @@ reactive({
 
 9. **watch 单查询上限 100 条** → 超限报 `EC_ERR_PARAM_INVALID`。progress watch 按 `{period, gen}` 过滤安全；units watch 虽已服务端过滤 `neq(true)`，但已删文档仍在库中累积，单位总数逼近 100 前需归档策略（`40e1602` 已有 hitCap 兜底刷新）
 
+10. **里程碑庆祝在刷新页面时误触发**（2026-10-22 已修复）→ 初次加载进度快照被 `watch(done)` 当成"进度增长"，42/42 时每次打开都喷 confetti + 弹「全部完成」。解法：`store.progressRev` 在整包快照加载（init / loadPeriod / resetPeriod）时自增，App.vue 用 `flush:'sync'` 监听它重置里程碑基线，只有用户操作导致的 done 增长才庆祝
+
 ---
 
 ## 当前状态
@@ -233,6 +247,7 @@ reactive({
 - Three.js 粒子背景
 - 移动端适配（2D 降级 + 地图/列表切换）
 - 实时时钟 + 倒计时
+- 首屏性能优化（2026-10-22）：ECharts 按需引入 + 挂载后动态加载、管理页/坐标弹窗/粒子背景/confetti 全部按需加载、Three.js 延迟到首屏空闲、vendor 分包长期缓存
 
 ### 🔜 待做
 - [ ] 接企业微信/飞书 OAuth 替代匿名登录
@@ -240,7 +255,7 @@ reactive({
 - [ ] 微信模板消息通知
 - [ ] 自定义域名
 - [ ] 单元测试
-- [ ] 性能优化（code-split echarts-gl/three）
+- [ ] CloudBase SDK 拆分（3.6.2 的 `./database` 子路径导出损坏，暂缓）
 
 ### 📅 状态快照（2026-10-22 核查）
 - HEAD `d9cf087` == origin/main，线上正常，units 42 有效 + 34 已删
