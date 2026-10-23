@@ -44,7 +44,7 @@ npx tcb hosting deploy dist -e ysy-server-d7gwidmgv14f8da68
 |----|------|------|
 | 框架 | Vue 3 Composition API + Vite | 前端 |
 | 样式 | Tailwind CSS 3 | 原子化 CSS |
-| 图表 | ECharts 5 + echarts-gl + Three.js | 2D/3D 地图 + 粒子背景 |
+| 图表 | ECharts 5 + Three.js | 地图 + 粒子背景 |
 | 后端 | 腾讯云 CloudBase | 数据库 + 实时推送 + 静态托管 |
 | 特效 | canvas-confetti | 里程碑庆祝 |
 | 部署 | `tcb hosting deploy` | 一键部署到 CDN |
@@ -234,7 +234,7 @@ reactive({
 ## 当前状态
 
 ### ✅ 已完成
-- 中国地图看板（2D 默认 + 3D 切换按钮）
+- 中国地图看板（2D，WebGL 仅用于粒子背景）
 - 省份下钻 + 城市级显示
 - CloudBase 实时同步（watch 长连接 + 降级轮询）
 - 单位 CRUD + 地图坐标拾取
@@ -257,9 +257,10 @@ reactive({
 - [ ] 单元测试
 - [ ] CloudBase SDK 拆分（3.6.2 的 `./database` 子路径导出损坏，暂缓）
 
-### 📅 状态快照（2026-10-22 核查）
-- HEAD `d9cf087` == origin/main，线上正常，units 42 有效 + 34 已删
+### 📅 状态快照（2026-10-23 核查）
+- HEAD `1dccc25` == origin/main，线上已部署首屏性能优化，units 42 有效 + 34 已删
 - 2026-10 周期 42/42 全部完成；2026-09 仅 1 条记录（9 月几乎未用）
+- 线上 Playwright 复验：42 单位、地图渲染、主题切换、管理页懒加载、移动端均通过，无运行时错误
 - 部署/查库命令与运维细节见 HANDOFF.md
 
 ---

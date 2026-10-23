@@ -37,7 +37,7 @@ npm run dev        # → http://localhost:5173
 
 ## 3. 版本管理（git）
 
-- **仓库**：`https://github.com/beileita/closing-dashboard.git`，唯一分支 `main`，本地 HEAD 与 origin 同步（2026-10-22 时为 `d9cf087`）
+- **仓库**：`https://github.com/beileita/closing-dashboard.git`，唯一分支 `main`，本地 HEAD 与 origin 同步（2026-10-23 时为 `1dccc25`）
 - **`dist/` 有意纳入 git**（部署方便，构建产物随代码走）
 - `.gitignore`：`node_modules` `.DS_Store` `*.local` `.vite`
 - **提交规范**（看历史即可）：中文 message，conventional 前缀 `feat:` / `fix:` / `docs:` / `baseline:`
@@ -121,14 +121,15 @@ QUERY / INSERT / UPDATE / DELETE 模板见 `tcb db nosql execute --help`。
 5. **tailwind.config.js 改动不生效** → 重启 `npm run dev`（JIT 不热更配置）
 6. watch 异常时自动降级 3 秒轮询；控制台有 `[store]` / `[watch:*]` 前缀日志可排查
 
-## 7. 当前状态快照（2026-10-22 核查）
+## 7. 当前状态快照（2026-10-23 核查）
 
-- **代码**：HEAD `d9cf087` == origin/main，工作区干净（仅未跟踪 `.claude/` `.codex/`）
-- **线上**：正常。units 42 有效 + 34 已删（与 8 月修复后一致）
+- **代码**：HEAD `1dccc25` == origin/main，工作区干净（仅未跟踪 `.claude/` `.codex/`）
+- **线上**：已部署 2026-10-23 首屏性能优化（`1dccc25`），units 42 有效 + 34 已删（与 8 月修复后一致）
+- **性能**：首屏阻塞 gzip 约 243KB（vue 31.5 + cloudbase 189.8 + 业务 16.2 + css 5.8）；echarts 169KB 异步、three 173.6KB 空闲加载
 - **2026-10 周期**：42/42 全部完成 ✅（当前月，看板活跃使用中）
 - **2026-09 周期**：仅 1 条进度记录 —— 9 月看板几乎没被使用（原因未确认）
 - **最近操作**：10/21 17:10、10/12 15:53（北京时间）各有 check/uncheck 成对操作，最终均已勾选，属正常使用
-- **待办**（TECHNICAL_ROADMAP.md 有更多）：企微/飞书 OAuth、云函数定时提醒、微信模板消息、自定义域名、单元测试、code-split（echarts-gl/three）
+- **待办**（TECHNICAL_ROADMAP.md 有更多）：企微/飞书 OAuth、云函数定时提醒、微信模板消息、自定义域名、单元测试、CloudBase SDK 拆分
 
 ## 8. 交接包内容
 
