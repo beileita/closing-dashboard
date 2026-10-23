@@ -367,6 +367,7 @@ export async function loadPeriod(period) {
 export async function toggleUnit(unitId) {
   if (store.currentPeriod !== store.realCurrentPeriod) return
 
+  const unit = store.units.find(x => x.id === unitId)
   const was = store.progress[unitId]
 
   // 乐观更新：立即反映到 UI
@@ -380,8 +381,7 @@ export async function toggleUnit(unitId) {
 
   // 如果标记完成 → 立即 toast + flash（乐观）
   if (optimistic.done) {
-    const u = store.units.find(x => x.id === unitId)
-    addToast(`✓ ${u ? u.name : '单位'} 已完成结账`, 'ok')
+    addToast(`✓ ${unit ? unit.name : '单位'} 已完成结账`, 'ok')
     store.flash++
     store.pulseUnitId = unitId
   }
@@ -395,7 +395,7 @@ export async function toggleUnit(unitId) {
   }
 
   try {
-    await backend.toggle(unitId, store.currentPeriod)
+    await backend.toggle(unitId, store.currentPeriod, unit ? unit.name : undefined)
     // watch 会回推确认；这里不需要额外处理
   } catch (e) {
     // 写入失败 → 回滚
@@ -477,7 +477,8 @@ export async function updateUnit(id, data) {
 
 export async function deleteUnit(id) {
   try {
-    await backend.deleteUnit(id)
+    const unit = store.units.find(x => x.id === id)
+    await backend.deleteUnit(id, unit ? unit.name : undefined)
     // watch 会推送删除到 store.units（deleted 文档被过滤）
     addToast('单位已删除', 'ok')
   } catch (e) {

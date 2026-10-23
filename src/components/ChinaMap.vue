@@ -24,7 +24,8 @@
 
     <!-- Info card (no owner display) -->
     <transition name="fade">
-      <div v-if="cardUnit" class="absolute top-3 right-3 card-elevated p-4 w-64 z-20">
+      <div v-if="cardUnit && cardVisible" :key="cardUnit.id" ref="cardEl" class="absolute card-elevated p-4 w-64 z-20"
+        :style="cardPos ? { left:cardPos.left+'px', top:cardPos.top+'px' } : { left:'12px', top:'12px', visibility:'hidden' }">
         <div class="flex items-start justify-between">
           <div class="flex-1 min-w-0">
             <div class="font-bold text-sm truncate" :style="{color:'var(--text-primary)'}">{{ cardUnit.name }}</div>
@@ -53,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { store, selectUnit, toggleUnit, isDone } from '../data/store'
 import { provinceAdcode } from '../data/adcode'
 
@@ -94,12 +95,111 @@ const cardUnit = computed(() => store.selectedUnitId ? store.units.find(u => u.i
 const cardDone = computed(() => store.selectedUnitId ? isDone(store.selectedUnitId) : false)
 const canToggle = computed(() => store.currentPeriod === store.realCurrentPeriod)
 
-// Auto-close card after 5 seconds
-let cardTimer = null
+// 信息卡跟随点位：先放大到单位位置，动画结束后再显示卡片
+const cardVisible = ref(false)
+const cardPos = ref(null)
+const cardEl = ref(null)
+let cardTimer = null, cardRevealTimer = null
+let prevView = null // 放大前的 center/zoom，卡片关闭后恢复
+const CARD_ZOOM = 6
+const CARD_GAP = 16, CARD_MARGIN = 12
+
+// 信息卡打开期间隐藏 tooltip（信息卡优先）；选中点换色
 watch(cardUnit, (u) => {
-  clearTimeout(cardTimer)
-  if (u) cardTimer = setTimeout(() => selectUnit(null), 5000)
+  if (!chart) return
+  if (chinaReady) chart.setOption({ series: [selectedMarkerSeries(u)] })
+  if (u) chart.dispatchAction({ type: 'hideTip' })
+  chart.setOption({ tooltip: { show: !u } })
 })
+
+function captureView() {
+  if (prevView || !chart) return
+  const geo = chart.getOption().geo?.[0] || {}
+  prevView = { center: geo.center, zoom: geo.zoom }
+}
+function zoomToUnit(u) {
+  if (!chart || !u) return
+  captureView()
+  // 以单位当前在屏幕上的位置为锚点放大，保持它不跑位，卡片就能贴着点位出现
+  const base = prevView || (chart.getOption().geo?.[0] || {})
+  const baseCenter = base.center
+  const baseZoom = base.zoom || 1.25
+  if (!baseCenter) {
+    // 省级地图没有固定 center：退化为居中放大
+    chart.setOption({ geo: { center: [u.lng, u.lat], zoom: CARD_ZOOM } })
+    return
+  }
+  const k = CARD_ZOOM / baseZoom
+  const center = [
+    u.lng - (u.lng - baseCenter[0]) / k,
+    u.lat - (u.lat - baseCenter[1]) / k,
+  ]
+  chart.setOption({ geo: { center, zoom: CARD_ZOOM } })
+}
+function restoreView() {
+  if (!chart) return
+  const v = prevView
+  prevView = null
+  if (!v) return
+  if (v.center) chart.setOption({ geo: { center: v.center, zoom: v.zoom } })
+  else render() // 省级地图没有固定 center，重建默认视图
+}
+function updateCardPos(u = cardUnit.value) {
+  if (!chart || !el.value || !u) return
+  const px = chart.convertToPixel({ geoIndex: 0 }, [u.lng, u.lat])
+  if (!px) return
+  const W = el.value.clientWidth, H = el.value.clientHeight
+  const cw = cardEl.value?.offsetWidth || 256
+  const ch = cardEl.value?.offsetHeight || 160
+  const minX = CARD_MARGIN, maxX = W - cw - CARD_MARGIN
+  const minY = CARD_MARGIN, maxY = H - ch - CARD_MARGIN
+  let left, top
+  if (px[0] + CARD_GAP + cw <= W - CARD_MARGIN) {
+    // 优先放点位右侧
+    left = px[0] + CARD_GAP
+    top = px[1] - ch / 2
+  } else if (px[0] - CARD_GAP - cw >= CARD_MARGIN) {
+    // 右侧放不下，翻到左侧
+    left = px[0] - CARD_GAP - cw
+    top = px[1] - ch / 2
+  } else if (px[1] + CARD_GAP + ch <= H - CARD_MARGIN) {
+    // 左右都放不下（窄屏），放点位下方，避免盖住选中点
+    left = px[0] - cw / 2
+    top = px[1] + CARD_GAP
+  } else {
+    // 下方也放不下，放点位上方
+    left = px[0] - cw / 2
+    top = px[1] - CARD_GAP - ch
+  }
+  left = Math.max(minX, Math.min(left, maxX))
+  top = Math.max(minY, Math.min(top, maxY))
+  cardPos.value = { left, top }
+}
+function refreshCardView() {
+  if (!cardVisible.value || !cardUnit.value || !chart) return
+  chart.setOption({ geo: { center: [cardUnit.value.lng, cardUnit.value.lat], zoom: CARD_ZOOM } })
+  updateCardPos(cardUnit.value)
+}
+function hideCardAndRestore() {
+  clearTimeout(cardRevealTimer)
+  clearTimeout(cardTimer)
+  cardVisible.value = false
+  restoreView()
+}
+function scheduleCardReveal(u) {
+  clearTimeout(cardRevealTimer)
+  clearTimeout(cardTimer)
+  cardVisible.value = false
+  // 等地图放大动画结束（animationDurationUpdate 450ms）再出卡
+  cardRevealTimer = setTimeout(async () => {
+    if (store.selectedUnitId !== u.id || !chart) return
+    updateCardPos(u) // 先用估算尺寸定位，避免卡片从左上角闪一下
+    cardVisible.value = true
+    await nextTick()
+    updateCardPos(u) // 再按真实卡片尺寸微调
+    cardTimer = setTimeout(() => selectUnit(null), 5000)
+  }, 480)
+}
 
 function ratioForProvince(name) {
   const us = store.units.filter(u => u.province===name)
@@ -142,12 +242,31 @@ function tooltipFormatter() {
   }
 }
 
+// 选中单位的高亮点位：盖在普通散点上方，颜色与绿色完成点区分
+function selectedMarkerSeries(u = cardUnit.value) {
+  const color = store.theme === 'dark' ? '#fbbf24' : '#d97706'
+  const border = store.theme === 'dark' ? '#ffffff' : '#15222e'
+  return {
+    id: 'selectedMarker',
+    type: 'scatter',
+    coordinateSystem: 'geo',
+    data: u ? [{ name: u.name, value: [u.lng, u.lat] }] : [],
+    symbolSize: 18,
+    itemStyle: { color, borderColor: border, borderWidth: 2, shadowBlur: 18, shadowColor: color },
+    zlevel: 3,
+    z: 10,
+    silent: true,
+    animation: false,
+  }
+}
+
 function buildOption(mapName) {
   const {done, undone} = splitPoints()
   const mc = mapColors
   return {
     backgroundColor: 'transparent',
-    tooltip: { trigger:'item', backgroundColor:mc.tooltipBg, borderColor:mc.tooltipBorder, borderWidth:1, padding:[10,14], textStyle:{color:mc.tooltipText,fontSize:12}, formatter:tooltipFormatter() },
+    animationDurationUpdate: 450,
+    tooltip: { show:!cardUnit.value, confine:true, className:'map-tooltip', trigger:'item', backgroundColor:mc.tooltipBg, borderColor:mc.tooltipBorder, borderWidth:1, padding:[10,14], textStyle:{color:mc.tooltipText,fontSize:12}, formatter:tooltipFormatter() },
     geo: {
       map: mapName, roam: true, scaleLimit: { min:1, max:8 },
       center: drilled.value ? undefined : [104.5, 37],
@@ -163,6 +282,7 @@ function buildOption(mapName) {
         itemStyle:{ color:mc.scatterDone, shadowBlur:14, shadowColor:mc.scatterDone }, zlevel:2, animationDelay:idx=>idx*50 },
       { type:'scatter', coordinateSystem:'geo', data:undone.map(u=>({ name:u.name, value:[u.lng,u.lat], unitId:u.id })), symbolSize:8,
         itemStyle:{ color:mc.scatterUndone, opacity:0.9, borderColor:mc.scatterUndoneBorder, borderWidth:1.5 } },
+      selectedMarkerSeries(),
     ],
   }
 }
@@ -175,11 +295,11 @@ function updateData() {
   if (!chart||!chinaReady || isRoaming) return
   const {done,undone} = splitPoints()
   chart.setOption({ geo:{ regions:regionList().map(r=>({ name:r.name, itemStyle:{ areaColor:r.color } })) },
-    series:[{ data:done.map(u=>({ name:u.name, value:[u.lng,u.lat], unitId:u.id })) },{ data:undone.map(u=>({ name:u.name, value:[u.lng,u.lat], unitId:u.id })) }] })
+    series:[{ data:done.map(u=>({ name:u.name, value:[u.lng,u.lat], unitId:u.id })) },{ data:undone.map(u=>({ name:u.name, value:[u.lng,u.lat], unitId:u.id })) }, selectedMarkerSeries()] })
 }
 
 // Re-render when theme changes
-watch(() => store.theme, () => { if (chart && chinaReady) { chart.setOption(buildOption(drilled.value ? 'province' : 'china'), true) } })
+watch(() => store.theme, () => { if (chart && chinaReady) { chart.setOption(buildOption(drilled.value ? 'province' : 'china'), true); refreshCardView() } })
 
 const SCS_NAMES = ['南海诸岛','南海诸岛及其它','南沙群岛','中沙群岛','东沙群岛','西沙群岛','九段线']
 function filterSouthChinaSea(geojson) {
@@ -199,6 +319,7 @@ async function loadChina() {
 
 async function drillTo(name) {
   const adcode = provinceAdcode[name]; if (!adcode) return
+  selectUnit(null)
   try {
     let json
     try { json = await fetch(`/geojson/${adcode}.json`).then(r=>r.json()) } catch(e){/* try CDN */}
@@ -209,7 +330,7 @@ async function drillTo(name) {
   } catch(e) { console.warn('Province map load failed', name, e) }
 }
 
-function back() { drilled.value=null; render() }
+function back() { selectUnit(null); drilled.value=null; render() }
 
 function attachEvents() {
   chart.on('click', p => {
@@ -220,7 +341,10 @@ function attachEvents() {
   chart.on('geoRoam', () => {
     isRoaming = true
     clearTimeout(roamTimer)
-    roamTimer = setTimeout(() => { isRoaming = false }, 600)
+    roamTimer = setTimeout(() => {
+      isRoaming = false
+      if (cardVisible.value) updateCardPos()
+    }, 600)
   })
 }
 
@@ -232,41 +356,53 @@ onMounted(async () => {
   attachEvents()
   // 容器尺寸变化（如排行榜侧边栏开合、移动端切换视图）时自动重绘
   if (typeof ResizeObserver !== 'undefined') {
-    _ro = new ResizeObserver(() => { if (chart) chart.resize() })
+    _ro = new ResizeObserver(() => {
+      if (!chart) return
+      chart.resize()
+      if (cardVisible.value) updateCardPos()
+    })
     _ro.observe(el.value)
   }
   await loadChina()
   applySelection(store.selectedUnitId)
-  _resizeHandler = ()=>chart&&chart.resize()
+  _resizeHandler = ()=>{ if(!chart) return; chart.resize(); if(cardVisible.value) updateCardPos() }
   window.addEventListener('resize',_resizeHandler)
 })
 onBeforeUnmount(() => {
+  clearTimeout(cardRevealTimer)
+  clearTimeout(cardTimer)
   if(_ro){_ro.disconnect();_ro=null}
   if(_resizeHandler) window.removeEventListener('resize',_resizeHandler)
   if(chart)chart.dispose(); chart=null
 })
 
 watch(()=>store.progress, updateData, {deep:true})
-watch(()=>store.units.length, ()=>render())
+watch(()=>store.units.length, ()=>{ render(); refreshCardView() })
 watch(()=>store.currentPeriod, ()=>{ drilled.value=null; render() })
 
 let lastHl=null
 function applySelection(id) {
-  if(!chart||!chinaReady||!id){lastHl=null;return}
+  if(!chart||!chinaReady){lastHl=null;return}
+  if(!id){
+    lastHl=null
+    hideCardAndRestore()
+    return
+  }
   if(lastHl)chart.dispatchAction({type:'downplay',seriesIndex:lastHl.si,dataIndex:lastHl.di})
   const opt=chart.getOption();let found=null;
   (opt.series||[]).forEach((s,si)=>{(s.data||[]).forEach((d,di)=>{if(d&&d.unitId===id)found={si,di}})})
   if(found){
     chart.dispatchAction({type:'highlight',seriesIndex:found.si,dataIndex:found.di})
-    chart.dispatchAction({type:'showTip',seriesIndex:found.si,dataIndex:found.di})
     lastHl=found
-    // Zoom to unit then restore after 3s
     const u=store.units.find(x=>x.id===id)
     if(u){
-      chart.setOption({geo:{center:[u.lng,u.lat],zoom:5}})
-      setTimeout(()=>chart.setOption({geo:{center:undefined,zoom:drilled.value?1:1.2}}),3000)
+      zoomToUnit(u)
+      scheduleCardReveal(u)
     }
-  }else lastHl=null
+  }else{
+    lastHl=null
+    hideCardAndRestore()
+  }
 }
 watch(()=>store.selectedUnitId, applySelection)
 

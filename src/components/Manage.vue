@@ -6,7 +6,7 @@
         <div class="text-3xl mb-3">🔒</div>
         <div class="text-white font-bold text-lg mb-1">管理员验证</div>
         <p class="text-gray-400 text-sm mb-5">需要管理员密码才能进入管理后台</p>
-        <input v-model="pwd" type="password" class="ipt mb-3" placeholder="管理员密码 (演示: admin123)" @keyup.enter="onLogin" />
+        <input v-model="pwd" type="password" class="ipt mb-3" placeholder="请输入管理员密码" @keyup.enter="onLogin" />
         <button @click="onLogin" class="btn btn-primary w-full">进入管理后台</button>
         <p v-if="err" class="text-red-400 text-xs mt-3">密码错误，请重试</p>
       </div>
@@ -98,7 +98,7 @@
                 <tr v-for="(l,i) in store.logs" :key="i" class="border-t border-gray-700/20">
                   <td class="py-1.5 pr-3 font-mono text-xs text-gray-500 whitespace-nowrap">{{ fmt(l.ts) }}</td>
                   <td class="pr-3 whitespace-nowrap"><span :class="actionColor(l.action)">{{ actionLabel(l.action) }}</span></td>
-                  <td class="pr-3 text-white font-mono text-xs">{{ l.unitId||l.period||'-' }}</td>
+                  <td class="pr-3 text-white text-xs" :title="l.unitId || ''">{{ logTarget(l) }}</td>
                   <td class="pr-3 font-mono text-xs text-gray-500">{{ l.device }}</td>
                 </tr>
                 <tr v-if="store.logs.length===0"><td colspan="4" class="py-6 text-center text-gray-500 text-sm">暂无操作记录</td></tr>
@@ -160,9 +160,17 @@ function actionColor(a) {
   return m[a]||'text-white'
 }
 function fmt(ts) { const d=new Date(ts); return `${d.getMonth()+1}-${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` }
+function logTarget(l) {
+  if (l.unitName) return l.unitName
+  if (l.unitId) {
+    const u = store.units.find(x => x.id === l.unitId)
+    return u ? u.name : l.unitId
+  }
+  return l.period || '-'
+}
 function exportCsv() {
   const rows=[['时间','操作','对象','设备','操作人']]
-  for(const l of store.logs) rows.push([new Date(l.ts).toLocaleString(),labels[l.action]||l.action,l.unitId||l.period||'',l.device,l.operator])
+  for(const l of store.logs) rows.push([new Date(l.ts).toLocaleString(),labels[l.action]||l.action,logTarget(l),l.device,l.operator])
   const csv='﻿'+rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n')
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}), a=document.createElement('a')
   a.href=URL.createObjectURL(blob); a.download=`logs-${store.currentPeriod}.csv`; a.click(); URL.revokeObjectURL(a.href)

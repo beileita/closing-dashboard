@@ -70,7 +70,7 @@
         <Dashboard v-if="store.view==='dashboard'" />
         <Manage v-else-if="store.view==='manage'" />
       </main>
-      <Leaderboard v-if="store.leaderboardOpen" :mode="lbMode" />
+      <Leaderboard v-if="store.leaderboardOpen" :mode="lbMode" :compact="lbCompact" />
     </div>
 
     <div v-if="store.flash>0" :key="'flash'+store.flash" class="flash-overlay"></div>
@@ -112,6 +112,8 @@ const isDesktop = ref(true), webgl = ref(false), particlesReady = ref(false)
 const viewportW = ref(typeof window !== 'undefined' ? window.innerWidth : 1440)
 // ≥1280 停靠列；768–1279 浮层；<768 全屏
 const lbMode = computed(() => viewportW.value >= 1280 ? 'dock' : viewportW.value >= 768 ? 'overlay' : 'full')
+// 1280–1439 停靠列收窄，避免地图被压得太窄
+const lbCompact = computed(() => viewportW.value >= 1280 && viewportW.value < 1440)
 function onResize() {
   viewportW.value = window.innerWidth
   isDesktop.value = viewportW.value >= 768

@@ -15,7 +15,7 @@ let localUnits = mockUnits.map(u => ({ ...u }))
 const localProgress = {}
 const localLogs = []
 const localConfig = {
-  adminPwd: 'admin123',
+  // 管理员密码只存云端 config（adminPwd），不在前端代码里保留默认值
   deadline: (() => {
     const d = new Date()
     const last = new Date(d.getFullYear(), d.getMonth() + 1, 0)
@@ -244,7 +244,7 @@ export const backend = {
     const result = await d.collection('units').add(doc)
     // 回写 id 字段（CloudBase 的 _id 也会自动存在）
     await d.collection('units').doc(result.id).update({ id: result.id })
-    writeLog('addUnit', { unitId: result.id })
+    writeLog('addUnit', { unitId: result.id, ...(data.name ? { unitName: data.name } : {}) })
     return { id: result.id, ...data }
   },
 
@@ -263,14 +263,14 @@ export const backend = {
 
     // 直接用 _id 定位更新
     await d.collection('units').doc(id).update(patch)
-    writeLog('editUnit', { unitId: id })
+    writeLog('editUnit', { unitId: id, ...(data.name ? { unitName: data.name } : {}) })
   },
 
   /**
    * 删除单位（软删除）
    * 同时清理关联的 progress 文档
    */
-  async deleteUnit(id) {
+  async deleteUnit(id, unitName) {
     const d = await connect()
     // 软删除
     await d.collection('units').doc(id).update({ deleted: true })
@@ -290,7 +290,7 @@ export const backend = {
     } catch (e) {
       /* 清理失败不影响删除 */
     }
-    writeLog('delUnit', { unitId: id })
+    writeLog('delUnit', { unitId: id, ...(unitName ? { unitName } : {}) })
   },
 
   // ---- Progress ----
@@ -356,7 +356,7 @@ export const backend = {
    * 切换单位完成状态
    * 存在 → toggle，不存在 → 创建（标记完成）
    */
-  async toggle(unitId, period) {
+  async toggle(unitId, period, unitName) {
     const dev = device()
     const d = await connect()
     const gen = await ensureGen()
@@ -387,7 +387,7 @@ export const backend = {
       await d.collection('progress').add(next)
     }
 
-    writeLog(next.done ? 'check' : 'uncheck', { period, unitId })
+    writeLog(next.done ? 'check' : 'uncheck', { period, unitId, ...(unitName ? { unitName } : {}) })
     return next
   },
 
@@ -518,9 +518,10 @@ export const backend = {
       const { data } = await d.collection('config').where({ key: 'adminPwd' }).get()
       if (data?.length) return data[0].value === pwd
     } catch (e) {
-      /* fall through */
+      console.warn('[backend] verifyAdmin failed:', e?.message || e)
     }
-    return pwd === localConfig.adminPwd
+    // 读不到云端密码时不放行（不再使用前端内置默认密码）
+    return false
   },
 
   async changePwd(old, nu) {
@@ -533,12 +534,12 @@ export const backend = {
       } else {
         await d.collection('config').add({ key: 'adminPwd', value: nu })
       }
+      writeLog('changePwd')
+      return true
     } catch (e) {
-      /* fall through */
+      console.warn('[backend] changePwd failed:', e?.message || e)
+      return false
     }
-    localConfig.adminPwd = nu
-    writeLog('changePwd')
-    return true
   },
 
   // ---- Logs ----
@@ -553,6 +554,7 @@ export const backend = {
         operator: r.operator,
         device: r.device,
         unitId: r.unitId,
+        unitName: r.unitName,
         period: r.period,
       }))
     } catch (e) {

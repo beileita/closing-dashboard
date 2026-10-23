@@ -1,5 +1,5 @@
 <template>
-  <div :class="mode==='dock' ? 'shrink-0 w-[380px] h-full' : 'fixed inset-0 z-50'">
+  <div :class="mode==='dock' ? (compact ? 'shrink-0 w-[340px] h-full' : 'shrink-0 w-[380px] h-full') : 'fixed inset-0 z-50'">
     <!-- 浮层 / 全屏模式的遮罩 -->
     <div v-if="mode!=='dock'" class="lb-backdrop absolute inset-0 bg-black/50" @click="closeLeaderboard"></div>
 
@@ -94,6 +94,8 @@ import {
 const props = defineProps({
   // dock: ≥1280 停靠列；overlay: 768–1279 浮层；full: <768 全屏
   mode: { type: String, default: 'dock' },
+  // 1280–1439 停靠列收窄到 340px，给地图让空间
+  compact: { type: Boolean, default: false },
 })
 
 const listEl = ref(null)
